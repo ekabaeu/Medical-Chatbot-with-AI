@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Chatbot with AI</title>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    
+    <div id="patient-modal">
+        <div id="modal-content">
+            <h2>Formulir Data Pasien</h2>
+            <div class="form-group">
+                <label for="patient-name">Nama Lengkap</label>
+                <input type="text" id="patient-name" placeholder="Masukkan nama Anda...">
+            </div>
+            <div class="form-group">
+                <label for="patient-age">Umur</label>
+                <input type="number" id="patient-age" placeholder="Masukkan umur...">
+            </div>
+            <div class="form-group">
+                <label for="patient-gender">Gender</label>
+                <select id="patient-gender">
+                    <option value="">Pilih Gender</option>
+                    <option value="Laki-laki">Laki-laki</option>
+                    <option value="Perempuan">Perempuan</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="patient-complaint">Keluhan Awal</label>
+                <textarea id="patient-complaint" placeholder="Jelaskan keluhan Anda..."></textarea>
+            </div>
+            <button id="start-chat-button">Mulai Konsultasi</button>
+        </div>
+    </div>
+    
+    <div id="chat-container" style="display: none;">
+        <div id="chat-header">
+            <span>🩺 Medical Chat Assistant</span>
+        </div>
+        
+        <div id="chat-box">
+            </div>
+
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Tanyakan sesuatu...">
+            <button id="send-button">➤</button>
+        </div>
+    </div>
+
+    <script src="script.js" defer></script>
+</body>
+</html>
