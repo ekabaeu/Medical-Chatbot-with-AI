@@ -16,7 +16,7 @@ const patientComplaintInput = document.getElementById('patient-complaint');
 const BACKEND_URL = 'http://localhost:5000';
 let patientData = {};
 let chatHistory = [];
-let sessionId = ''; // --- Variabel untuk ID Sesi ---
+let sessionId = ''; 
 
 // --- Event Listeners ---
 sendButton.addEventListener('click', sendMessageFromInput);
@@ -24,7 +24,6 @@ userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessageFromInput();
 });
 
-// Event listener untuk tombol "Mulai Konsultasi"
 startChatButton.addEventListener('click', async () => {
     const name = patientNameInput.value.trim();
     const age = patientAgeInput.value.trim();
@@ -37,71 +36,75 @@ startChatButton.addEventListener('click', async () => {
     }
 
     patientData = { name, age, gender, complaint };
-    
-    // Buat sessionId unik saat chat dimulai
     sessionId = Date.now().toString(); 
     
     patientModal.style.display = 'none';
     chatContainer.style.display = 'flex';
+    
     await processUserMessage(complaint);
 });
 
 
-// =================================================================
-// INI FUNGSI YANG HILANG/SALAH (PASTIKAN INI ADA)
-// =================================================================
+// --- FUNGSI: Simpan chat secara otomatis ---
 async function autoSaveChat() {
-    // Cek jika ada data untuk disimpan
     if (chatHistory.length === 0 || !sessionId) {
-        return; // Jangan lakukan apa-apa jika tidak ada data
+        return;
     }
-
-    // Siapkan data untuk dikirim (JSON)
     const dataToSave = {
         patientData: patientData,
         chatHistory: chatHistory,
-        sessionId: sessionId // --- Kirim sessionId
+        sessionId: sessionId
     };
-    
     const SAVE_URL = `${BACKEND_URL}/save-chat`; 
 
     try {
-        // Kirim data ke backend menggunakan fetch
         const response = await fetch(SAVE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dataToSave)
         });
-
         if (!response.ok) {
             console.error('Auto-save failed:', await response.json());
         } else {
             console.log('Chat auto-saved successfully.');
         }
-
     } catch (error) {
         console.error('Error auto-saving chat:', error);
     }
 }
+
+
+// =================================================================
+// FUNGSI KONVERSI MARKDOWN YANG BARU (LEBIH BAIK)
 // =================================================================
 
+// Konfigurasi Marked.js agar:
+// 1. Mengubah \n menjadi <br> (seperti fungsi lama Anda)
+// 2. Menggunakan standar Markdown yang modern
+marked.setOptions({
+  breaks: false,
+  gfm: true 
+});
 
-// Fungsi: Konversi Markdown ke HTML Aman
 function convertMarkdownToHTML(text) {
-    let safeText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    let html = safeText.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    html = html.replace(/\n/g, '<br>');
-    return html;
+    // 1. Ubah Markdown (termasuk *, **, \n) menjadi HTML
+    // Gunakan opsi 'breaks: true' agar \n diubah jadi <br>
+    let rawHtml = marked.parse(text);
+    
+    // 2. Bersihkan HTML dari kode berbahaya (XSS)
+    let safeHtml = DOMPurify.sanitize(rawHtml);
+    
+    return safeHtml;
 }
+// =================================================================
+
 
 // Fungsi: Kirim pesan dari KOTAK INPUT
 async function sendMessageFromInput() {
     const message = userInput.value.trim();
     if (message === '') return;
-
-    userInput.value = ''; 
+    
+    userInput.value = ''; // Kosongkan input SEKARANG
     await processUserMessage(message); 
 }
 
@@ -113,19 +116,18 @@ async function processUserMessage(message) {
         sender: 'User',
         message: message
     });
-    // Tunggu bot merespons
-    await getBotResponse(message);
+    await getBotResponse();
 }
 
 // Fungsi: Logika inti untuk mendapatkan respons bot
-async function getBotResponse(message) {
+async function getBotResponse() {
     const botMessageElement = displayMessage('', 'bot');
     const botMessageObj = {
         timestamp: new Date().toISOString(),
         sender: 'Bot',
         message: ''
     };
-    chatHistory.push(botMessageObj);
+    chatHistory.push(botMessageObj); 
     
     let rawBotText = ''; 
 
@@ -133,7 +135,7 @@ async function getBotResponse(message) {
         const response = await fetch(`${BACKEND_URL}/chat`, { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: message })
+            body: JSON.stringify({ history: chatHistory })
         });
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -148,8 +150,11 @@ async function getBotResponse(message) {
             const chunk = decoder.decode(value, { stream: true });
             rawBotText += chunk; 
             
-            botMessageObj.message = rawBotText;
+            botMessageObj.message = rawBotText; 
+            
+            // Gunakan fungsi konverter baru di setiap chunk
             botMessageElement.innerHTML = convertMarkdownToHTML(rawBotText); 
+            
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
@@ -158,13 +163,9 @@ async function getBotResponse(message) {
         const errorMsg = 'Maaf, terjadi kesalahan: ' + error.message;
         botMessageElement.innerHTML = errorMsg;
         botMessageElement.style.color = 'red';
-        botMessageObj.message = errorMsg; 
+        botMessageObj.message = errorMsg;
     }
     
-    // =================================================================
-    // INI ADALAH BARIS 114 (ATAU SEKITARNYA) YANG MENYEBABKAN ERROR
-    // INI MEMANGGIL FUNGSI DI ATAS
-    // =================================================================
     await autoSaveChat();
 }
 
@@ -174,8 +175,10 @@ function displayMessage(message, sender) {
     messageElement.classList.add('message', `${sender}-message`);
 
     if (sender === 'user') {
+        // Pesan pengguna tidak perlu konversi, cukup teks
         messageElement.textContent = message;
     } else {
+        // Pesan bot dikonversi menggunakan fungsi baru
         messageElement.innerHTML = convertMarkdownToHTML(message);
     }
     

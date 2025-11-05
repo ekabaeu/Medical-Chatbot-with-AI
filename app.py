@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app) 
 
 OLLAMA_API_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = "gemma3:270m"
+MODEL_NAME = "alibayram/medgemma"
 SAVE_DIR = "chat_logs"
 
 # === Fungsi Helper untuk Mengamankan CSV ===
@@ -24,21 +24,60 @@ def escape_csv(s):
     return s
 
 # === Endpoint 1: Untuk Streaming Chat ===
+# === Endpoint 1: Untuk Streaming Chat (MODIFIKASI TOTAL) ===
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.json
-    user_message = data.get('message')
     
-    if not user_message:
-        return jsonify({"error": "Pesan tidak boleh kosong"}), 400
+    # 1. Ambil seluruh riwayat chat dari frontend
+    history_from_frontend = data.get('history', [])
 
+    if not history_from_frontend:
+        return jsonify({"error": "Riwayat chat kosong"}), 400
+
+    # 2. Buat "System Prompt" yang kuat
+    # INILAH KUNCI UNTUK MENGUBAH PERILAKU BOT
+    system_prompt = {
+        "role": "system",
+        "content": (
+            "Anda adalah Asisten Medis AI yang profesional dan langsung ke intinya. "
+            "Pengguna TELAH memberikan keluhan awal mereka di formulir."
+            "Tugas Anda adalah: "
+            "1. JAWAB LANGSUNG dengan menganalisis keluhan dari pengguna."
+            "2. JANGAN PERNAH menyapa dan basa-basi (seperti 'Halo', 'Ada yang bisa dibantu?')."
+            "3. Berikan analisis awal, kemungkinan penyebab, atau ajukan pertanyaan diagnostik lanjutan yang spesifik."
+            "4. Selalu jaga nada klinis dan membantu."
+        )
+    }
+    
+    # 3. Ubah format riwayat dari frontend ke format yang dimengerti LLM
+    messages_for_llm = []
+    for chat in history_from_frontend:
+        # "sender" (dari JS) bisa "User" atau "Bot"
+        # "role" (untuk LLM) harus "user" atau "assistant"
+        role = "user" if chat.get('sender') == 'User' else 'assistant'
+        
+        # Kita tidak mengirim pesan 'bot' yang masih kosong (placeholder)
+        if role == 'assistant' and not chat.get('message'):
+            continue
+            
+        messages_for_llm.append({
+            "role": role,
+            "content": chat.get('message')
+        })
+
+    # 4. Gabungkan System Prompt dengan riwayat chat
+    final_payload_messages = [system_prompt] + messages_for_llm
+
+    # 5. Siapkan payload untuk Ollama
     payload = {
         "model": MODEL_NAME,
-        "messages": [{"role": "user", "content": user_message}],
+        "messages": final_payload_messages, # <-- Menggunakan riwayat LENGKAP
         "stream": True
     }
 
     try:
+        # Fungsi generator (ini tidak berubah)
         def generate():
             with requests.post(OLLAMA_API_URL, json=payload, stream=True) as r:
                 r.raise_for_status()
@@ -56,7 +95,7 @@ def chat():
     except requests.exceptions.RequestException as e:
         return jsonify({"error": f"Gagal menghubungi Ollama: {e}"}), 500
 
-# === Endpoint 2: Untuk Menyimpan Chat (MODIFIKASI) ===
+# === Endpoint 2: Untuk Menyimpan Chat ==
 @app.route('/save-chat', methods=['POST'])
 def save_chat():
     if not os.path.exists(SAVE_DIR):
