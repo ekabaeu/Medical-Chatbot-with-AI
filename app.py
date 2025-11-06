@@ -4,7 +4,8 @@ import requests
 import json
 import os
 import datetime
-import re # Import library regex
+import re 
+import fnmatch # <-- BARU: Import pustaka pencocokan file
 
 # --- Konfigurasi ---
 app = Flask(__name__)
@@ -16,14 +17,13 @@ SAVE_DIR = "chat_logs"
 
 # === Fungsi Helper untuk Mengamankan CSV ===
 def escape_csv(s):
-    """Mengamankan string untuk dimasukkan ke dalam sel CSV."""
     if not s:
         return '""'
     if ',' in s or '"' in s or '\n' in s:
         return '"' + s.replace('"', '""') + '"'
     return s
 
-# === SYSTEM PROMPT BARU (Lebih Sederhana dan Efektif) ===
+# === SYSTEM PROMPT (Ini sudah benar, jangan diubah) ===
 system_prompt = {
     "role": "system",
     "content": (
@@ -62,34 +62,21 @@ system_prompt = {
     )
 }
 
-# === Endpoint 1: Untuk Streaming Chat ===
+# === Endpoint 1: Untuk Streaming Chat (Ini sudah benar, jangan diubah) ===
 @app.route('/chat', methods=['POST'])
 def chat():
-    """Menangani permintaan chat dari frontend."""
     data = request.json
     history_from_frontend = data.get('history', [])
-
     if not history_from_frontend:
         return jsonify({"error": "Riwayat chat kosong"}), 400
-
     messages_for_llm = []
     for chat in history_from_frontend:
         role = "user" if chat.get('sender') == 'User' else 'assistant'
         if role == 'assistant' and not chat.get('message'):
             continue
-        messages_for_llm.append({
-            "role": role,
-            "content": chat.get('message')
-        })
-
+        messages_for_llm.append({"role": role, "content": chat.get('message')})
     final_payload_messages = [system_prompt] + messages_for_llm
-
-    payload = {
-        "model": MODEL_NAME,
-        "messages": final_payload_messages,
-        "stream": True
-    }
-
+    payload = {"model": MODEL_NAME, "messages": final_payload_messages, "stream": True}
     try:
         def generate():
             with requests.post(OLLAMA_API_URL, json=payload, stream=True) as r:
@@ -100,19 +87,16 @@ def chat():
                             chunk = json.loads(line.decode('utf-8'))
                             if "message" in chunk and "content" in chunk["message"]:
                                 yield chunk["message"]["content"] 
-                        except json.JSONDecodeError:
-                            pass 
-
+                        except json.JSONDecodeError: pass 
         return app.response_class(stream_with_context(generate()), mimetype='text/plain')
-
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to Ollama: {e}")
         return jsonify({"error": f"Gagal menghubungi Ollama: {e}"}), 500
 
-# === Endpoint 2: Untuk Menyimpan Chat (Overwrite Otomatis) ===
+# === Endpoint 2: Untuk Menyimpan Chat (Overwrite & Rename Otomatis) ===
 @app.route('/save-chat', methods=['POST'])
 def save_chat():
-    """Menerima data chat, memformat, dan menimpa (overwrite) file CSV."""
+    """Menerima data, menghapus file sesi lama, dan menyimpan file baru (rename)."""
     
     if not os.path.exists(SAVE_DIR):
         os.makedirs(SAVE_DIR)
@@ -121,29 +105,43 @@ def save_chat():
         data = request.json
         chat_history = data.get('chatHistory', [])
         session_id = data.get('sessionId')
+        patient_data = data.get('patientData', {}) # Ambil data pasien
 
         if not chat_history or not session_id:
             return jsonify({"error": "Data chat atau sessionId tidak ada"}), 400
 
-        # Simpan log mentah. Tidak ada header data pasien.
+        # 1. Tentukan NAMA FILE BARU berdasarkan data pasien saat ini
+        name = patient_data.get('name', 'unknown').replace(' ', '_')
+        age = patient_data.get('age', 'unknown')
+        new_filename = f"chat_{name}_{age}_{session_id}.csv"
+        new_filepath = os.path.join(SAVE_DIR, new_filename)
+
+        # 2. Pola untuk MENCARI FILE LAMA
+        search_pattern = f"chat_*_*_{session_id}.csv"
+
+        # 3. Cari dan HAPUS file lama
+        for f in os.listdir(SAVE_DIR):
+            if fnmatch.fnmatch(f, search_pattern):
+                # Jika file yang ditemukan BUKAN file baru (artinya ini file lama)
+                if f != new_filename:
+                    old_filepath = os.path.join(SAVE_DIR, f)
+                    os.remove(old_filepath)
+                    print(f"File lama {f} dihapus.")
+                break # Asumsi hanya ada 1 file per sesi
+
+        # 4. Buat konten CSV
         csv_content = ["Timestamp,Sender,Message\n"]
-        
         for row in chat_history:
             message = row.get('message', '')
             line = f"{row.get('timestamp')},{row.get('sender')},{escape_csv(message)}\n"
             csv_content.append(line)
-        
         csv_string = "".join(csv_content)
 
-        # Nama file HANYA berdasarkan sessionId agar konsisten
-        filename = f"chat_sesi_{session_id}.csv"
-        filepath = os.path.join(SAVE_DIR, filename)
-
-        # 'w' (write) akan SELALU menimpa (overwrite) file
-        with open(filepath, 'w', encoding='utf-8') as f:
+        # 5. Tulis (atau Timpa) file dengan NAMA BARU
+        with open(new_filepath, 'w', encoding='utf-8') as f:
             f.write(csv_string)
         
-        return jsonify({"message": f"Chat disimpan sebagai {filename}"}), 200
+        return jsonify({"message": f"Chat disimpan sebagai {new_filename}"}), 200
 
     except Exception as e:
         print(f"Error saving chat: {e}")
