@@ -7,23 +7,25 @@ const sendButton = document.getElementById('send-button');
 // --- Variabel Global ---
 const BACKEND_URL = 'http://localhost:5000';
 let chatHistory = []; 
+let sessionId = null; // Akan diisi saat pesan pertama
 
 // --- Event Listeners ---
 sendButton.addEventListener('click', sendMessageFromInput);
 userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessageFromInput();
 });
+// Bot pasif, tidak ada 'DOMContentLoaded'
 
-
-// --- FUNGSI: Simpan chat secara otomatis (DIRINGKAS) ---
+// --- FUNGSI: Simpan chat secara otomatis ---
 async function autoSaveChat() {
-    if (chatHistory.length === 0) {
-        return; 
+    if (chatHistory.length === 0 || !sessionId) {
+        return; // Jangan simpan jika tidak ada chat atau sesi
     }
     
-    // Kita hanya mengirim riwayat chat mentah
+    // Kirim data (HANYA riwayat dan ID sesi)
     const dataToSave = {
-        chatHistory: chatHistory
+        chatHistory: chatHistory,
+        sessionId: sessionId
     };
     
     const SAVE_URL = `${BACKEND_URL}/save-chat`; 
@@ -46,30 +48,19 @@ async function autoSaveChat() {
 
 
 // =================================================================
-// FUNGSI KONVERSI MARKDOWN (MODIFIKASI: Sembunyikan JSON)
+// FUNGSI KONVERSI MARKDOWN (Menggunakan Marked.js & DOMPurify)
+// Pastikan Anda sudah memuat library ini di index.html
 // =================================================================
 marked.setOptions({
-  breaks: false, // Menggunakan paragraf standar
-  gfm: true 
+  breaks: false, // Menggunakan paragraf standar (enter 2x)
+  gfm: true      // Mengaktifkan GitHub Flavored Markdown (tabel, coretan, dll.)
 });
 
 function convertMarkdownToHTML(text) {
-    let cleanText = text;
-
-    // --- BARU: Cari dan HAPUS baris JSON dari TAMPILAN ---
-    // Ini mencari baris yang dimulai dengan '{"PATIENT_DATA":'
-    // dan menghapusnya dari teks sebelum di-render.
-    const jsonBlockRegex = /^{\"PATIENT_DATA\":(.*?)}\n?/m;
-    
-    // Ganti blok JSON dengan string kosong
-    cleanText = text.replace(jsonBlockRegex, '');
-
-    // 1. Ubah sisa Markdown menjadi HTML
-    let rawHtml = marked.parse(cleanText);
-    
+    // 1. Konversi Markdown ke HTML
+    let rawHtml = marked.parse(text);
     // 2. Bersihkan HTML dari kode berbahaya (XSS)
     let safeHtml = DOMPurify.sanitize(rawHtml);
-    
     return safeHtml;
 }
 // =================================================================
@@ -80,38 +71,49 @@ async function sendMessageFromInput() {
     const message = userInput.value.trim();
     if (message === '') return;
     
+    // Buat sessionId pada pesan PERTAMA
+    if (sessionId === null) {
+        sessionId = Date.now().toString();
+    }
+    
     userInput.value = ''; // Kosongkan input SEKARANG
     await processUserMessage(message); 
 }
 
 // Fungsi: Prosesor pesan utama
 async function processUserMessage(message) {
+    // 1. Tampilkan pesan user di UI
     displayMessage(message, 'user');
+    // 2. Tambahkan pesan user ke riwayat
     chatHistory.push({
         timestamp: new Date().toISOString(),
         sender: 'User',
         message: message
     });
+    // 3. Panggil bot untuk merespons
     await getBotResponse();
 }
 
 // Fungsi: Logika inti untuk mendapatkan respons bot
 async function getBotResponse() {
+    // 1. Tampilkan bubble bot kosong (placeholder)
     const botMessageElement = displayMessage('', 'bot');
+    // 2. Tambahkan placeholder bot ke riwayat
     const botMessageObj = {
         timestamp: new Date().toISOString(),
         sender: 'Bot',
-        message: ''
+        message: '' // Awalnya kosong
     };
     chatHistory.push(botMessageObj); 
     
-    let rawBotText = ''; 
+    let rawBotText = ''; // Untuk mengumpulkan stream
 
     try {
+        // 3. Kirim SELURUH riwayat ke backend
         const response = await fetch(`${BACKEND_URL}/chat`, { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ history: chatHistory }) // Hanya kirim riwayat
+            body: JSON.stringify({ history: chatHistory })
         });
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -119,19 +121,19 @@ async function getBotResponse() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
 
+        // 4. Baca stream respons
         while (true) {
             const { done, value } = await reader.read();
-            if (done) break; 
+            if (done) break; // Stream selesai
             
             const chunk = decoder.decode(value, { stream: true });
             rawBotText += chunk; 
             
-            // Simpan teks mentah (DENGAN JSON) ke riwayat
+            // 5. Update object di riwayat DAN di UI
             botMessageObj.message = rawBotText; 
-            
-            // Tampilkan teks yang sudah dibersihkan (TANPA JSON)
             botMessageElement.innerHTML = convertMarkdownToHTML(rawBotText); 
             
+            // Auto-scroll
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
@@ -140,9 +142,10 @@ async function getBotResponse() {
         const errorMsg = 'Maaf, terjadi kesalahan: ' + error.message;
         botMessageElement.innerHTML = errorMsg;
         botMessageElement.style.color = 'red';
-        botMessageObj.message = errorMsg;
+        botMessageObj.message = errorMsg; // Simpan error di riwayat
     }
     
+    // 6. Simpan seluruh riwayat ke CSV (timpa file lama)
     await autoSaveChat();
 }
 
@@ -152,13 +155,14 @@ function displayMessage(message, sender) {
     messageElement.classList.add('message', `${sender}-message`);
 
     if (sender === 'user') {
+        // Pesan user adalah teks biasa
         messageElement.textContent = message;
     } else {
-        // Terapkan fungsi konversi di sini (penting untuk placeholder)
+        // Pesan bot dikonversi dari Markdown
         messageElement.innerHTML = convertMarkdownToHTML(message);
     }
     
     chatBox.appendChild(messageElement);
     chatBox.scrollTop = chatBox.scrollHeight;
-    return messageElement;
+    return messageElement; // Kembalikan elemen untuk diisi oleh stream
 }

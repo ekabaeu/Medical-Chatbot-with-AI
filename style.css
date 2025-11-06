@@ -21,7 +21,7 @@ body {
 /* Kontainer Chat */
 #chat-container {
     width: 90%;
-    max-width: 800px; /* Sesuai permintaan Anda untuk lebih lebar */
+    max-width: 800px;
     height: 90vh;
     max-height: 700px;
     background-color: #ffffff;
@@ -47,17 +47,15 @@ body {
     overflow-y: auto;
     padding: 20px;
     background-color: #ffffff;
-    /* Kunci untuk bubble chat agar pas */
     display: flex;
     flex-direction: column;
 }
 
 .message {
-    /* Ini adalah bubble default */
     margin-bottom: 15px;
     max-width: 85%;
     line-height: 1.5;
-    word-wrap: break-word; /* Nama modern: overflow-wrap */
+    word-wrap: break-word;
     padding: 12px 18px;
     border-radius: 20px;
 }
@@ -67,12 +65,8 @@ body {
     background-color: #4CAF50;
     color: white;
     border-radius: 20px 20px 5px 20px;
-    
-    /* Mendorong bubble ke kanan */
     align-self: flex-end;
     margin-left: auto;
-    
-    /* Teks rata kanan */
     text-align: right;
 }
 
@@ -82,11 +76,8 @@ body {
     color: #333;
     border: 1px solid #e0e0e0;
     border-radius: 20px 20px 20px 5px;
-    
-    /* Mendorong bubble ke kiri */
     align-self: flex-start;
     margin-right: auto;
-    
     text-align: left;
 }
 
