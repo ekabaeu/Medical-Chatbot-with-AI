@@ -4,19 +4,9 @@ const chatBox = document.getElementById('chat-box');
 const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
 
-// --- Referensi Modal ---
-const patientModal = document.getElementById('patient-modal');
-const startChatButton = document.getElementById('start-chat-button');
-const patientNameInput = document.getElementById('patient-name');
-const patientAgeInput = document.getElementById('patient-age');
-const patientGenderInput = document.getElementById('patient-gender');
-const patientComplaintInput = document.getElementById('patient-complaint');
-
 // --- Variabel Global ---
 const BACKEND_URL = 'http://localhost:5000';
-let patientData = {};
-let chatHistory = [];
-let sessionId = ''; 
+let chatHistory = []; 
 
 // --- Event Listeners ---
 sendButton.addEventListener('click', sendMessageFromInput);
@@ -24,37 +14,18 @@ userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessageFromInput();
 });
 
-startChatButton.addEventListener('click', async () => {
-    const name = patientNameInput.value.trim();
-    const age = patientAgeInput.value.trim();
-    const gender = patientGenderInput.value;
-    const complaint = patientComplaintInput.value.trim();
 
-    if (!name || !age || !gender || !complaint) {
-        alert('Harap isi semua data sebelum memulai.');
-        return;
-    }
-
-    patientData = { name, age, gender, complaint };
-    sessionId = Date.now().toString(); 
-    
-    patientModal.style.display = 'none';
-    chatContainer.style.display = 'flex';
-    
-    await processUserMessage(complaint);
-});
-
-
-// --- FUNGSI: Simpan chat secara otomatis ---
+// --- FUNGSI: Simpan chat secara otomatis (DIRINGKAS) ---
 async function autoSaveChat() {
-    if (chatHistory.length === 0 || !sessionId) {
-        return;
+    if (chatHistory.length === 0) {
+        return; 
     }
+    
+    // Kita hanya mengirim riwayat chat mentah
     const dataToSave = {
-        patientData: patientData,
-        chatHistory: chatHistory,
-        sessionId: sessionId
+        chatHistory: chatHistory
     };
+    
     const SAVE_URL = `${BACKEND_URL}/save-chat`; 
 
     try {
@@ -75,21 +46,26 @@ async function autoSaveChat() {
 
 
 // =================================================================
-// FUNGSI KONVERSI MARKDOWN YANG BARU (LEBIH BAIK)
+// FUNGSI KONVERSI MARKDOWN (MODIFIKASI: Sembunyikan JSON)
 // =================================================================
-
-// Konfigurasi Marked.js agar:
-// 1. Mengubah \n menjadi <br> (seperti fungsi lama Anda)
-// 2. Menggunakan standar Markdown yang modern
 marked.setOptions({
-  breaks: false,
+  breaks: false, // Menggunakan paragraf standar
   gfm: true 
 });
 
 function convertMarkdownToHTML(text) {
-    // 1. Ubah Markdown (termasuk *, **, \n) menjadi HTML
-    // Gunakan opsi 'breaks: true' agar \n diubah jadi <br>
-    let rawHtml = marked.parse(text);
+    let cleanText = text;
+
+    // --- BARU: Cari dan HAPUS baris JSON dari TAMPILAN ---
+    // Ini mencari baris yang dimulai dengan '{"PATIENT_DATA":'
+    // dan menghapusnya dari teks sebelum di-render.
+    const jsonBlockRegex = /^{\"PATIENT_DATA\":(.*?)}\n?/m;
+    
+    // Ganti blok JSON dengan string kosong
+    cleanText = text.replace(jsonBlockRegex, '');
+
+    // 1. Ubah sisa Markdown menjadi HTML
+    let rawHtml = marked.parse(cleanText);
     
     // 2. Bersihkan HTML dari kode berbahaya (XSS)
     let safeHtml = DOMPurify.sanitize(rawHtml);
@@ -135,7 +111,7 @@ async function getBotResponse() {
         const response = await fetch(`${BACKEND_URL}/chat`, { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ history: chatHistory })
+            body: JSON.stringify({ history: chatHistory }) // Hanya kirim riwayat
         });
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -150,9 +126,10 @@ async function getBotResponse() {
             const chunk = decoder.decode(value, { stream: true });
             rawBotText += chunk; 
             
+            // Simpan teks mentah (DENGAN JSON) ke riwayat
             botMessageObj.message = rawBotText; 
             
-            // Gunakan fungsi konverter baru di setiap chunk
+            // Tampilkan teks yang sudah dibersihkan (TANPA JSON)
             botMessageElement.innerHTML = convertMarkdownToHTML(rawBotText); 
             
             chatBox.scrollTop = chatBox.scrollHeight;
@@ -175,10 +152,9 @@ function displayMessage(message, sender) {
     messageElement.classList.add('message', `${sender}-message`);
 
     if (sender === 'user') {
-        // Pesan pengguna tidak perlu konversi, cukup teks
         messageElement.textContent = message;
     } else {
-        // Pesan bot dikonversi menggunakan fungsi baru
+        // Terapkan fungsi konversi di sini (penting untuk placeholder)
         messageElement.innerHTML = convertMarkdownToHTML(message);
     }
     
