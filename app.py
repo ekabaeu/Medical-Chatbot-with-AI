@@ -5,7 +5,7 @@ import json
 import os
 import datetime
 import re 
-import fnmatch # <-- BARU: Import pustaka pencocokan file
+import fnmatch # <-- Penting untuk "rename" file
 
 # --- Konfigurasi ---
 app = Flask(__name__)
@@ -23,60 +23,89 @@ def escape_csv(s):
         return '"' + s.replace('"', '""') + '"'
     return s
 
-# === SYSTEM PROMPT (Ini sudah benar, jangan diubah) ===
-system_prompt = {
-    "role": "system",
-    "content": (
-        "Anda adalah Asisten Medis AI yang hening dan efisien. Anda HANYA merespons input pengguna."
-        "\n\n"
-        "**ATURAN UTAMA: Periksa Panjang Riwayat Chat**"
-        "\n\n"
-        "**1. JIKA RIWAYAT CHAT PENDEK (1-2 pesan dari 'User'):**"
-        "\n"
-        "Ini adalah keluhan awal. Tugas Anda adalah memberikan ANALISIS LENGKAP."
-        "\n"
-        "JANGAN PERNAH menjawab 'Maaf, data tidak lengkap' atau sejenisnya. LANGSUNG ANALISIS apa pun yang diberikan pengguna."
-        "\n"
-        "GUNAKAN 'Format Analisis Wajib' di bawah ini."
-        "\n\n"
-        "**2. JIKA RIWAYAT CHAT PANJANG (3+ pesan dari 'User'):**"
-        "\n"
-        "Ini adalah percakapan lanjutan. TUGAS Anda adalah beralih ke mode PERCAKAPAN NATURAL."
-        "\n"
-        "ANDA HARUS BERHENTI menggunakan format analisis. Jawablah dengan pertanyaan singkat dan natural."
-        "\n"
-        "Contoh: 'Terima kasih atas informasinya. Apakah ruamnya juga terasa panas?'"
-        "\n\n"
-        "--- (AWAL Format Analisis Wajib - HANYA UNTUK CHAT PENDEK) ---"
-        "\n"
-        "**Analisis Awal:**\n[Analisis Anda berdasarkan keluhan...]\n\n"
-        "**Kemungkinan Penyebab:**\n* **[Penyebab 1]:** [Penjelasan...]\n* **[Penyebab 2]:** [Penjelasan...]\n\n"
-        "**Pertanyaan Diagnostik Lanjutan:**\n* [Pertanyaan 1?]\n* [Pertanyaan 2?]\n\n"
-        "**Rekomendasi Awal:**\n* [Rekomendasi...]"
-        "\n"
-        "--- (AKHIR Format Analisis Wajib) ---"
-        "\n\n"
-        "**ATURAN NON-MEDIS:**"
-        "\n"
-        "Jika pengguna bertanya non-medis (cuaca, film), JAWAB: 'Maaf, saya hanya dapat memproses pertanyaan terkait kesehatan.'"
-    )
-}
+# === GANTI SYSTEM_PROMPT_TEMPLATE LAMA ANDA DENGAN INI ===
 
-# === Endpoint 1: Untuk Streaming Chat (Ini sudah benar, jangan diubah) ===
+system_prompt_template = (
+    "Anda adalah Asisten Medis AI yang sangat ketat. Anda HANYA merespons input pengguna."
+    "\n\n"
+    "**ATURAN 1: EVALUASI PANJANG RIWAYAT**"
+    "\n"
+    "Berapa banyak pesan 'User' yang ada di *seluruh* riwayat?"
+    "\n\n"
+    "* **JIKA HANYA 1 PESAN (Ini Keluhan Awal):**"
+    "\n"
+    "    Tugas Anda adalah MENGASUMSIKAN ini adalah keluhan medis dan memberikan ANALISIS LENGKAP."
+    "\n"
+    "    JANGAN PERNAH menolak pesan pertama. LANGSUNG analisis."
+    "\n"
+    "    Gunakan 'Format Analisis Wajib' di bawah ini."
+    "\n"
+    "    {FORMAT_SWITCH_1}"
+    "\n\n"
+    "* **JIKA LEBIH DARI 1 PESAN (Ini Percakapan Lanjutan):**"
+    "\n"
+    "    Periksa pesan TERAKHIR pengguna:"
+    "\n"
+    "    **A. JIKA PESAN NON-MEDIS (cuaca, '1+1', 'halo'):** JAWAB: 'Maaf, saya hanya dapat memproses pertanyaan terkait kesehatan.'"
+    "\n"
+    "    **B. JIKA PESAN MEDIS:** Beralihlah ke mode PERCAKAPAN NATURAL. JANGAN gunakan format analisis awal. Jawab dengan singkat."
+    "\n"
+    "    {FORMAT_SWITCH_2}"
+    "\n\n"
+    "--- (AWAL Format Analisis Wajib - HANYA UNTUK PESAN PERTAMA) ---"
+    "\n"
+    "**Analisis Awal:**\n[Analisis Anda...]\n\n"
+    "**Kemungkinan Penyebab:**\n* **[Penyebab 1]:** [Penjelasan...]\n\n"
+    "**Pertanyaan Diagnostik Lanjutan:**\n* [Pertanyaan 1?]\n\n"
+    "**Rekomendasi Awal:**\n* [Rekomendasi...]"
+    "\n"
+    "--- (AKHIR Format Analisis Wajib) ---"
+)
+
+# (Sisa file app.py Anda, termasuk endpoint /chat dan /save-chat, biarkan SAMA)
+# ...
+
+
+# === Endpoint 1: Untuk Streaming Chat ===
 @app.route('/chat', methods=['POST'])
 def chat():
+    """Menangani permintaan chat dari frontend."""
     data = request.json
     history_from_frontend = data.get('history', [])
     if not history_from_frontend:
         return jsonify({"error": "Riwayat chat kosong"}), 400
+
+    # Ubah format riwayat dari frontend (sender) ke format LLM (role)
     messages_for_llm = []
     for chat in history_from_frontend:
         role = "user" if chat.get('sender') == 'User' else 'assistant'
         if role == 'assistant' and not chat.get('message'):
             continue
         messages_for_llm.append({"role": role, "content": chat.get('message')})
-    final_payload_messages = [system_prompt] + messages_for_llm
+    
+    # Hitung jumlah pesan 'user' untuk logika prompt
+    user_message_count = sum(1 for msg in messages_for_llm if msg['role'] == 'user')
+    
+    # Modifikasi system prompt secara dinamis berdasarkan jumlah pesan
+    if user_message_count <= 1:
+        # Ini adalah pesan pertama, PAKSA gunakan format
+        prompt_content = system_prompt_template.format(
+            FORMAT_SWITCH_1="ANDA HARUS MENGGUNAKAN 'Format Analisis Wajib'.",
+            FORMAT_SWITCH_2="ANDA TIDAK BOLEH MENGGUNAKAN mode ini."
+        )
+    else:
+        # Ini adalah pesan lanjutan, LARANG gunakan format
+        prompt_content = system_prompt_template.format(
+            FORMAT_SWITCH_1="ANDA TIDAK BOLEH MENGGUNAKAN mode ini.",
+            FORMAT_SWITCH_2="ANDA HARUS BERHENTI menggunakan 'Format Analisis Wajib'."
+        )
+
+    
+    final_system_prompt = {"role": "system", "content": prompt_content}
+    final_payload_messages = [final_system_prompt] + messages_for_llm
+
     payload = {"model": MODEL_NAME, "messages": final_payload_messages, "stream": True}
+    
     try:
         def generate():
             with requests.post(OLLAMA_API_URL, json=payload, stream=True) as r:
@@ -117,16 +146,19 @@ def save_chat():
         new_filepath = os.path.join(SAVE_DIR, new_filename)
 
         # 2. Pola untuk MENCARI FILE LAMA
+        # Ini akan mencari file apa pun yang memiliki sessionId yang sama
         search_pattern = f"chat_*_*_{session_id}.csv"
 
-        # 3. Cari dan HAPUS file lama
+        # 3. Cari dan HAPUS file lama (jika namanya berbeda)
         for f in os.listdir(SAVE_DIR):
             if fnmatch.fnmatch(f, search_pattern):
-                # Jika file yang ditemukan BUKAN file baru (artinya ini file lama)
                 if f != new_filename:
                     old_filepath = os.path.join(SAVE_DIR, f)
-                    os.remove(old_filepath)
-                    print(f"File lama {f} dihapus.")
+                    try:
+                        os.remove(old_filepath)
+                        print(f"File lama {f} dihapus.")
+                    except OSError as e:
+                        print(f"Error menghapus file lama {f}: {e}")
                 break # Asumsi hanya ada 1 file per sesi
 
         # 4. Buat konten CSV
