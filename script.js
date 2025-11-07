@@ -5,14 +5,15 @@ const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
 
 // --- Variabel Global ---
-const BACKEND_URL = 'http://localhost:5000';
+// URL ini sudah diatur ke Cloudflare Tunnel Anda
+const BACKEND_URL = 'https://fisheries-allows-anatomy-circles.trycloudflare.com';
 let chatHistory = []; 
 let sessionId = null; // Akan diisi saat pesan pertama
-// --- BARU: Data pasien (awalnya unknown) ---
-let patientData = { name: 'unknown', age: 'unknown' };
+let patientData = { name: 'unknown', age: 'unknown' }; // Default
 
 // --- Event Listeners ---
-sendButton.addEventListener('click', sendMessageFromInput);
+// PERBAIKAN: Baris yang hilang ini telah ditambahkan kembali
+sendButton.addEventListener('click', sendMessageFromInput); 
 userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessageFromInput();
 });
@@ -23,7 +24,7 @@ async function autoSaveChat() {
         return; 
     }
     
-    // --- BARU: Kirim patientData juga ---
+    // Kirim data pasien yang sudah diekstrak
     const dataToSave = {
         chatHistory: chatHistory,
         sessionId: sessionId,
@@ -65,35 +66,37 @@ function convertMarkdownToHTML(text) {
 // =================================================================
 
 
-// --- BARU: Fungsi untuk mengekstrak data dari teks user ---
-function parseUserData(message) {
-    // Hanya coba ekstrak jika data masih 'unknown'
-    if (patientData.name === 'unknown') {
-        // Mencari "nama saya Rian", "nama Rian", "Saya Rian"
-        const nameMatch = message.match(/(?:nama saya|nama|saya)\s+([a-zA-Z]+)/i);
-        if (nameMatch && nameMatch[1]) {
-            patientData.name = nameMatch[1];
-        }
+// --- Fungsi untuk mengekstrak data dari teks user (LOGIKA ANDA) ---
+function extractInitialDataFromMessage(message) {
+    // 1. Ambil kata pertama dan bersihkan (hapus koma, dll)
+    const firstWord = message.split(' ')[0].replace(/,/g, '').toLowerCase();
+    
+    // 2. Buat daftar kata sapaan yang akan diabaikan
+    const greetings = [
+        'halo', 'hai', 'hi', 'selamat', 'pagi', 
+        'siang', 'sore', 'malam', 'permisi', 'dok'
+    ];
+    
+    // 3. Logika Asumsi Nama (sesuai permintaan Anda)
+    // Jika kata pertama BUKAN sapaan, asumsikan itu adalah nama
+    if (!greetings.includes(firstWord)) {
+        // Ambil kata pertama, bersihkan, dan kapitalisasi
+        let assumedName = message.split(' ')[0].replace(/,/g, '');
+        patientData.name = assumedName.charAt(0).toUpperCase() + assumedName.slice(1).toLowerCase();
     }
     
-    if (patientData.age === 'unknown') {
-        // Mencari "umur 22", "22 tahun"
-        const ageMatch = message.match(/(\d+)\s*(?:tahun|thn)/i);
-        if (ageMatch && ageMatch[1]) {
-            patientData.age = ageMatch[1];
-        } else {
-             // Mencari "umur 22"
-            const ageMatch2 = message.match(/umur\s+(\d+)/i);
-            if (ageMatch2 && ageMatch2[1]) {
-                patientData.age = ageMatch2[1];
-            }
-        }
+    // 4. Logika Ekstraksi Umur
+    const ageMatch = message.match(/(\d+)\s*(?:tahun|thn)/i);
+    if (ageMatch && ageMatch[1]) {
+        patientData.age = ageMatch[1];
+    } else {
+         const ageMatch2 = message.match(/umur\s+(\d+)/i);
+         if (ageMatch2 && ageMatch2[1]) {
+             patientData.age = ageMatch2[1];
+         }
     }
     
-    // Cetak ke konsol jika data diperbarui
-    if (patientData.name !== 'unknown' || patientData.age !== 'unknown') {
-        console.log('Data Pasien diperbarui:', patientData);
-    }
+    console.log('Data Pasien yang diekstrak:', patientData);
 }
 
 
@@ -105,10 +108,10 @@ async function sendMessageFromInput() {
     // Buat sessionId pada pesan PERTAMA
     if (sessionId === null) {
         sessionId = Date.now().toString();
+        
+        // Panggil fungsi ekstraksi HANYA PADA PESAN PERTAMA
+        extractInitialDataFromMessage(message);
     }
-    
-    // --- BARU: Coba ekstrak data dari pesan user ---
-    parseUserData(message);
     
     userInput.value = ''; // Kosongkan input SEKARANG
     await processUserMessage(message); 
@@ -166,7 +169,7 @@ async function getBotResponse() {
         const errorMsg = 'Maaf, terjadi kesalahan: ' + error.message;
         botMessageElement.innerHTML = errorMsg;
         botMessageElement.style.color = 'red';
-        botMessageObj.message = errorMsg;
+        botMessageElement.message = errorMsg;
     }
     
     // Simpan ke CSV (dengan data pasien terbaru)
