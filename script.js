@@ -1,18 +1,15 @@
-// --- Referensi Elemen ---
 const chatContainer = document.getElementById('chat-container');
 const chatBox = document.getElementById('chat-box');
 const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
 
 // --- Variabel Global ---
-// URL ini sudah diatur ke Cloudflare Tunnel Anda
-const BACKEND_URL = 'https://fisheries-allows-anatomy-circles.trycloudflare.com';
+const BACKEND_URL = 'https://bills-ordinance-stream-pcs.trycloudflare.com';
 let chatHistory = []; 
 let sessionId = null; // Akan diisi saat pesan pertama
 let patientData = { name: 'unknown', age: 'unknown' }; // Default
 
 // --- Event Listeners ---
-// PERBAIKAN: Baris yang hilang ini telah ditambahkan kembali
 sendButton.addEventListener('click', sendMessageFromInput); 
 userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessageFromInput();
@@ -77,7 +74,7 @@ function extractInitialDataFromMessage(message) {
         'siang', 'sore', 'malam', 'permisi', 'dok'
     ];
     
-    // 3. Logika Asumsi Nama (sesuai permintaan Anda)
+    // 3. Logika Asumsi Nama
     // Jika kata pertama BUKAN sapaan, asumsikan itu adalah nama
     if (!greetings.includes(firstWord)) {
         // Ambil kata pertama, bersihkan, dan kapitalisasi
