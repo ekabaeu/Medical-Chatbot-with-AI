@@ -87,9 +87,7 @@ Kita perlu menyajikan file HTML/JS Anda dari port lokal (misal: 8000).
 cd /path/ke/folder-frontend
 
 \# Sajikan file di port 8000  
-python3 \-m http.server 8000
-
-*(Jika Python 3 gagal, coba python \-m SimpleHTTPServer 8000 untuk Python 2\)*
+python \-m http.server 8000
 
 ### **4\. Frontend: Jalankan Tunnel (Terminal 4\)**
 
