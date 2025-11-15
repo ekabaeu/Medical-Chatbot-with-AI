@@ -1,14 +1,14 @@
-from flask import Flask, request, jsonify, stream_with_context
+from flask import Flask, request, jsonify, stream_with_context, Response
 from flask_cors import CORS
 import requests
 import json
 import os
 import fnmatch
 
-# Impor dari file-file baru
+# Impor dari file-file proyek
 import config
 from prompts import system_prompt_task_1, system_prompt_task_2, system_prompt_task_3
-from utils import escape_csv
+import utils  # Impor seluruh modul utils
 
 # --- Konfigurasi Aplikasi ---
 app = Flask(__name__)
@@ -32,7 +32,6 @@ def stream_chutes_ai_response(payload):
                             break
                         try:
                             chunk = json.loads(data_str)
-                            # Ekstrak konten dari chunk sesuai struktur API
                             if chunk.get("choices") and len(chunk["choices"]) > 0:
                                 delta = chunk["choices"][0].get("delta", {})
                                 content = delta.get("content")
@@ -49,13 +48,12 @@ def stream_chutes_ai_response(payload):
 # === Endpoint 1: Untuk Streaming Chat ===
 @app.route('/chat', methods=['POST'])
 def chat():
-    """Menangani permintaan chat dari frontend menggunakan Chutes AI."""
+    """Menangani permintaan chat dari frontend dan menyimpan data pasien pada pesan pertama."""
     data = request.json
     history_from_frontend = data.get('history', [])
     if not history_from_frontend:
         return jsonify({"error": "Riwayat chat kosong"}), 400
 
-    # Ubah format history untuk Chutes AI
     messages_for_llm = []
     for chat_item in history_from_frontend:
         role = "user" if chat_item.get('sender') == 'User' else 'assistant'
@@ -63,7 +61,6 @@ def chat():
         if content:
             messages_for_llm.append({"role": role, "content": content})
 
-    # Filter pertanyaan non-medis
     if messages_for_llm and messages_for_llm[-1]['role'] == 'user':
         last_user_message = messages_for_llm[-1]['content'].lower()
         non_medical_keywords = [
@@ -73,20 +70,36 @@ def chat():
         if any(keyword in last_user_message for keyword in non_medical_keywords):
             def generate_refusal():
                 yield "Maaf, saya hanya dapat memproses pertanyaan terkait kesehatan."
-            return app.response_class(stream_with_context(generate_refusal()), mimetype='text/plain')
+            return Response(stream_with_context(generate_refusal()), mimetype='text/plain')
 
-    # === LOGIKA 3 TAHAP BARU ===
     user_message_count = sum(1 for msg in messages_for_llm if msg['role'] == 'user')
     
+    patient_info = {}
+    # === LOGIKA PENYIMPANAN DATA PASIEN PADA PESAN PERTAMA ===
     if user_message_count == 1:
+        initial_complaint = messages_for_llm[-1]['content']
+        
+        # Ekstrak info dari pesan
+        patient_info = utils.extract_patient_info(initial_complaint)
+        
+        # Buat ID Pasien
+        patient_id = utils.generate_patient_id()
+        
+        # Simpan ke database.csv
+        utils.save_patient_data(
+            patient_id=patient_id,
+            name=patient_info['nama'],
+            age=patient_info['umur'],
+            gender=patient_info['gender'],
+            initial_complaint=initial_complaint
+        )
         final_system_prompt = system_prompt_task_1
+    # ==========================================================
     elif user_message_count == 2:
         final_system_prompt = system_prompt_task_2
     else:
         final_system_prompt = system_prompt_task_3
-    # ============================
 
-    # Siapkan payload untuk Chutes AI
     final_payload_messages = [final_system_prompt] + messages_for_llm
     
     payload = {
@@ -97,7 +110,13 @@ def chat():
         "temperature": 0.7
     }
     
-    return app.response_class(stream_with_context(stream_chutes_ai_response(payload)), mimetype='text/plain')
+    response = Response(stream_with_context(stream_chutes_ai_response(payload)), mimetype='text/plain')
+
+    if patient_info:
+        response.headers['X-Patient-Data'] = json.dumps(patient_info)
+        response.headers['Access-Control-Expose-Headers'] = 'X-Patient-Data'
+
+    return response
 
 
 # === Endpoint 2: Untuk Menyimpan Chat (Overwrite & Rename Otomatis) ===
@@ -138,7 +157,8 @@ def save_chat():
         csv_content = ["Timestamp,Sender,Message\n"]
         for row in chat_history:
             message = row.get('message', '')
-            line = f"{row.get('timestamp')},{row.get('sender')},{escape_csv(message)}\n"
+            # Gunakan utils.escape_csv
+            line = f"{row.get('timestamp')},{row.get('sender')},{utils.escape_csv(message)}\n"
             csv_content.append(line)
         csv_string = "".join(csv_content)
 

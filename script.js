@@ -7,7 +7,7 @@ const sendButton = document.getElementById('send-button');
 const BACKEND_URL = 'http://localhost:5000';
 let chatHistory = []; 
 let sessionId = null; // Akan diisi saat pesan pertama
-let patientData = { name: 'unknown', age: 'unknown' }; // Default
+let patientData = { name: 'unknown', age: 'unknown' }; // Menyimpan data pasien
 
 // --- Event Listeners ---
 sendButton.addEventListener('click', sendMessageFromInput); 
@@ -25,7 +25,7 @@ async function autoSaveChat() {
     const dataToSave = {
         chatHistory: chatHistory,
         sessionId: sessionId,
-        patientData: patientData 
+        patientData: patientData // Sertakan data pasien
     };
     
     const SAVE_URL = `${BACKEND_URL}/save-chat`; 
@@ -62,41 +62,6 @@ function convertMarkdownToHTML(text) {
 }
 // =================================================================
 
-
-// --- Fungsi untuk mengekstrak data dari teks user (LOGIKA ANDA) ---
-function extractInitialDataFromMessage(message) {
-    // 1. Ambil kata pertama dan bersihkan (hapus koma, dll)
-    const firstWord = message.split(' ')[0].replace(/,/g, '').toLowerCase();
-    
-    // 2. Buat daftar kata sapaan yang akan diabaikan
-    const greetings = [
-        'halo', 'hai', 'hi', 'selamat', 'pagi', 
-        'siang', 'sore', 'malam', 'permisi', 'dok'
-    ];
-    
-    // 3. Logika Asumsi Nama
-    // Jika kata pertama BUKAN sapaan, asumsikan itu adalah nama
-    if (!greetings.includes(firstWord)) {
-        // Ambil kata pertama, bersihkan, dan kapitalisasi
-        let assumedName = message.split(' ')[0].replace(/,/g, '');
-        patientData.name = assumedName.charAt(0).toUpperCase() + assumedName.slice(1).toLowerCase();
-    }
-    
-    // 4. Logika Ekstraksi Umur
-    const ageMatch = message.match(/(\d+)\s*(?:tahun|thn)/i);
-    if (ageMatch && ageMatch[1]) {
-        patientData.age = ageMatch[1];
-    } else {
-         const ageMatch2 = message.match(/umur\s+(\d+)/i);
-         if (ageMatch2 && ageMatch2[1]) {
-             patientData.age = ageMatch2[1];
-         }
-    }
-    
-    console.log('Data Pasien yang diekstrak:', patientData);
-}
-
-
 // Fungsi: Kirim pesan dari KOTAK INPUT
 async function sendMessageFromInput() {
     const message = userInput.value.trim();
@@ -105,9 +70,6 @@ async function sendMessageFromInput() {
     // Buat sessionId pada pesan PERTAMA
     if (sessionId === null) {
         sessionId = Date.now().toString();
-        
-        // Panggil fungsi ekstraksi HANYA PADA PESAN PERTAMA
-        extractInitialDataFromMessage(message);
     }
     
     userInput.value = ''; // Kosongkan input SEKARANG
@@ -146,6 +108,25 @@ async function getBotResponse() {
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
+        // --- EKSTRAKSI DATA PASIEN DARI HEADER ---
+        const patientHeader = response.headers.get('X-Patient-Data');
+        if (patientHeader) {
+            try {
+                const parsedData = JSON.parse(patientHeader);
+                // Hanya perbarui jika data baru valid
+                if (parsedData.nama && parsedData.nama !== 'unknown') {
+                    patientData.name = parsedData.nama;
+                }
+                if (parsedData.umur && parsedData.umur !== 'unknown') {
+                    patientData.age = parsedData.umur;
+                }
+                console.log('Patient data updated:', patientData);
+            } catch (e) {
+                console.error('Failed to parse patient data from header:', e);
+            }
+        }
+        // -----------------------------------------
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
 
@@ -166,7 +147,7 @@ async function getBotResponse() {
         const errorMsg = 'Maaf, terjadi kesalahan: ' + error.message;
         botMessageElement.innerHTML = errorMsg;
         botMessageElement.style.color = 'red';
-        botMessageElement.message = errorMsg;
+        botMessageObj.message = errorMsg; // Perbarui objek riwayat juga
     }
     
     // Simpan ke CSV (dengan data pasien terbaru)
