@@ -4,7 +4,7 @@ const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
 
 // --- Variabel Global ---
-const BACKEND_URL = 'https://bills-ordinance-stream-pcs.trycloudflare.com';
+const BACKEND_URL = 'http://localhost:5000';
 let chatHistory = []; 
 let sessionId = null; // Akan diisi saat pesan pertama
 let patientData = { name: 'unknown', age: 'unknown' }; // Default
