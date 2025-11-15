@@ -108,3 +108,31 @@ Terminal akan menampilkan URL frontend publik Anda.
 Buka **URL Frontend** (https://frontend-url-anda.trycloudflare.com dari Langkah 4\) di browser Anda.
 
 Aplikasi Anda sekarang berjalan. Frontend tersebut akan memanggil **URL Backend** (https://backend-url-anda.trycloudflare.com dari Langkah 2\) untuk mengambil data. Biarkan ke-4 terminal tetap terbuka.
+
+## **Deploy ke Vercel (Hosting Permanen)**
+
+Proyek ini juga dikonfigurasi untuk deployment ke Vercel untuk hosting permanen.
+
+### **Prasyarat untuk Vercel**
+* Akun Vercel (https://vercel.com)
+* Vercel CLI (opsional, untuk deployment dari command line)
+
+### **Langkah-langkah Deployment**
+
+1. **Fork repository ini ke GitHub Anda**
+2. **Masuk ke dashboard Vercel**
+3. **Klik "New Project"**
+4. **Pilih repository yang telah Anda fork**
+5. **Konfigurasi project:**
+   * Framework Preset: `Other`
+   * Root Directory: `/`
+   * Output Directory: ` `
+6. **Tambahkan Environment Variables:**
+   * `CHUTES_API_TOKEN` = `[your_chutes_api_token]`
+7. **Deploy!**
+
+### **Catatan Penting**
+* File `vercel.json` mengatur konfigurasi deployment
+* File `requirements.txt` berisi dependensi Python
+* Frontend dan backend akan di-deploy sebagai satu aplikasi
+* Pastikan Anda telah mengatur `CHUTES_API_TOKEN` di environment variables Vercel

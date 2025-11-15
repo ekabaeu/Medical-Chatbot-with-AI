@@ -171,6 +171,6 @@ def save_chat():
         print(f"Error saving chat: {e}")
         return jsonify({"error": "Gagal menyimpan chat di server"}), 500
 
-# === Jalankan Server ===
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+# === Vercel Serverless Function ===
+# Vercel expects the Flask app to be available as 'app'
+# The if __name__ == '__main__' block is not needed for Vercel

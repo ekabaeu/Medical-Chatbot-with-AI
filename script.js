@@ -4,8 +4,9 @@ const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
 
 // --- Variabel Global ---
-const BACKEND_URL = 'http://localhost:5000';
-let chatHistory = []; 
+// Use the same origin for backend when deployed to Vercel
+const BACKEND_URL = window.location.origin;
+let chatHistory = [];
 let sessionId = null; // Akan diisi saat pesan pertama
 let patientData = { name: 'unknown', age: 'unknown' }; // Menyimpan data pasien
 
