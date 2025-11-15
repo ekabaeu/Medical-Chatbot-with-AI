@@ -4,36 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Medical Chatbot</title>
-    
-    <!-- Memuat Library Pihak Ketiga -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
-
-    <!-- Menghubungkan ke file CSS eksternal -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    
-    <!-- Formulir Modal TELAH DIHAPUS -->
-
-    <!-- Kontainer Chat (Langsung ditampilkan) -->
     <div id="chat-container">
         <div id="chat-header">
             <span>🩺 Medical Chat Assistant</span>
         </div>
         
         <div id="chat-box">
-            <!-- Bot akan diam, menunggu user -->
         </div>
-
-        <!-- PERBAIKAN DI SINI: Tombol send sekarang ada DI DALAM input-area -->
         <div id="input-area">
             <input type="text" id="user-input" placeholder="Ketik Nama, Umur, Gender, dan Keluhan Awal Anda...">
             <button id="send-button">➤</button>
         </div>
     </div>
 
-    <!-- Menghubungkan ke file JavaScript eksternal -->
     <script src="script.js" defer></script>
 </body>
 </html>
