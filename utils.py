@@ -158,12 +158,26 @@ def save_chat_history_supabase(session_id: str, chat_history: list, patient_data
     """
     try:
         supabase = get_supabase_client()
+        
+        # Logging untuk debugging - cek apakah sudah ada data dengan session_id ini
+        print(f"Menyimpan chat history untuk session_id: {session_id}")
+        existing_data = supabase.table('chat_logs').select('*').eq('session_id', session_id).execute()
+        print(f"Data yang sudah ada dengan session_id {session_id}: {existing_data.data}")
+        
         chat_data = {
             'session_id': session_id,
             'chat_history': chat_history,
             'patient_data': patient_data
         }
-        response = supabase.table('chat_logs').insert(chat_data).execute()
+        
+        # Jika sudah ada data dengan session_id ini, update daripada insert
+        if existing_data.data:
+            print(f"Updating existing chat log for session_id: {session_id}")
+            response = supabase.table('chat_logs').update(chat_data).eq('session_id', session_id).execute()
+        else:
+            print(f"Inserting new chat log for session_id: {session_id}")
+            response = supabase.table('chat_logs').insert(chat_data).execute()
+            
         if response.data:
             print(f"Riwayat chat untuk sesi '{session_id}' telah berhasil disimpan ke Supabase.")
             return True
@@ -172,6 +186,8 @@ def save_chat_history_supabase(session_id: str, chat_history: list, patient_data
             return False
     except Exception as e:
         print(f"Terjadi error saat menyimpan riwayat chat ke Supabase: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def get_patient_data_by_id(patient_id: str):
