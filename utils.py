@@ -3,7 +3,7 @@ import os
 import re
 import random
 import string
-from supabase_config import get_supabase_client
+from config import get_supabase_client
 
 def generate_patient_id(length=5):
     """Menghasilkan ID pasien acak alfanumerik dengan panjang tertentu."""

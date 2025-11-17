@@ -119,15 +119,6 @@ def chat():
         # Buat ID Pasien
         patient_id = utils.generate_patient_id()
         
-        # Simpan ke database.csv (local fallback)
-        utils.save_patient_data(
-            patient_id=patient_id,
-            name=patient_info['nama'],
-            age=patient_info['umur'],
-            gender=patient_info['gender'],
-            initial_complaint=initial_complaint
-        )
-        
         # Simpan ke Supabase (primary storage)
         utils.save_patient_data_supabase(
             patient_id=patient_id,
