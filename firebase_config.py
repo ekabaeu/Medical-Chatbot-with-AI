@@ -35,10 +35,15 @@ def initialize_firebase():
             
             # Initialize Firebase with credentials
             cred = credentials.Certificate(firebase_config)
+            
+            # Use the FIREBASE_DATABASE_URL environment variable, with a fallback to the default format
+            database_url = os.getenv("FIREBASE_DATABASE_URL") or f'https://{os.getenv("FIREBASE_PROJECT_ID")}-default-rtdb.firebaseio.com/'
+            
             firebase_admin.initialize_app(cred, {
-                'databaseURL': f'https://{os.getenv("FIREBASE_PROJECT_ID")}-default-rtdb.firebaseio.com/'
+                'databaseURL': database_url
             })
             print("Firebase initialized successfully")
+            print(f"Using database URL: {database_url}")
         except Exception as e:
             print(f"Error initializing Firebase: {e}")
             raise e

@@ -164,4 +164,7 @@ def save_chat_history_firebase(session_id: str, chat_history: list, patient_data
         return True
     except Exception as e:
         print(f"Terjadi error saat menyimpan riwayat chat ke Firebase: {e}")
+        print(f"Error type: {type(e).__name__}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         return False
