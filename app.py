@@ -10,26 +10,10 @@ import uuid
 import config
 from prompts import system_prompt_task_1, system_prompt_task_2, system_prompt_task_3
 import utils  # Impor seluruh modul utils
-import firebase_config  # Impor konfigurasi Firebase
 
 # --- Konfigurasi Aplikasi ---
 app = Flask(__name__)
-CORS(app) 
-
-# Initialize Firebase
-try:
-    firebase_config.initialize_firebase()
-except Exception as e:
-    print(f"Warning: Firebase not initialized: {e}")
-
-# Impor dari file-file proyek
-import config
-from prompts import system_prompt_task_1, system_prompt_task_2, system_prompt_task_3
-import utils  # Impor seluruh modul utils
-
-# --- Konfigurasi Aplikasi ---
-app = Flask(__name__)
-CORS(app) 
+CORS(app)
 
 def stream_chutes_ai_response(payload):
     """Menangani koneksi dan streaming dari Chutes AI API."""
@@ -112,8 +96,8 @@ def chat():
             initial_complaint=initial_complaint
         )
         
-        # Simpan ke Firebase (primary storage)
-        utils.save_patient_data_firebase(
+        # Simpan ke Supabase (primary storage)
+        utils.save_patient_data_supabase(
             patient_id=patient_id,
             name=patient_info['nama'],
             age=patient_info['umur'],
@@ -162,13 +146,13 @@ def save_chat():
         if not chat_history or not session_id:
             return jsonify({"error": "Data chat atau sessionId tidak ada"}), 400
 
-        # Simpan ke Firebase (primary storage)
-        success = utils.save_chat_history_firebase(session_id, chat_history, patient_data)
+        # Simpan ke Supabase (primary storage)
+        success = utils.save_chat_history_supabase(session_id, chat_history, patient_data)
         
         if success:
-            return jsonify({"message": f"Chat disimpan ke Firebase dengan session ID: {session_id}"}), 200
+            return jsonify({"message": f"Chat disimpan ke Supabase dengan session ID: {session_id}"}), 200
         else:
-            return jsonify({"error": "Gagal menyimpan chat ke Firebase"}), 500
+            return jsonify({"error": "Gagal menyimpan chat ke Supabase"}), 500
             
     except Exception as e:
         print(f"Error saving chat: {e}")

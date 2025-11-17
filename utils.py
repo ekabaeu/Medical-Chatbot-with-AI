@@ -3,6 +3,7 @@ import os
 import re
 import random
 import string
+from supabase_config import get_supabase_client
 from firebase_admin import db
 
 def generate_patient_id(length=5):
@@ -108,9 +109,9 @@ def save_patient_data(patient_id: str, name: str, age: int, gender: str, initial
         print(f"Terjadi error saat menulis ke file: {e}")
         return False
 
-def save_patient_data_firebase(patient_id: str, name: str, age: int, gender: str, initial_complaint: str, session_id: str = None):
+def save_patient_data_supabase(patient_id: str, name: str, age: int, gender: str, initial_complaint: str, session_id: str = None):
     """
-    Menyimpan data pasien ke Firebase Realtime Database.
+    Menyimpan data pasien ke Supabase Database.
     
     Args:
         patient_id (str): ID unik untuk pasien.
@@ -124,24 +125,29 @@ def save_patient_data_firebase(patient_id: str, name: str, age: int, gender: str
         bool: True jika berhasil, False jika gagal.
     """
     try:
-        ref = db.reference('patients')
-        ref.child(patient_id).set({
+        supabase = get_supabase_client()
+        patient_data = {
             'id_pasien': patient_id,
             'nama': name,
             'umur': age,
             'gender': gender,
             'keluhan_awal': initial_complaint,
             'session_id': session_id
-        })
-        print(f"Data untuk pasien '{name}' ({patient_id}) telah berhasil disimpan ke Firebase.")
-        return True
+        }
+        response = supabase.table('patients').insert(patient_data).execute()
+        if response.data:
+            print(f"Data untuk pasien '{name}' ({patient_id}) telah berhasil disimpan ke Supabase.")
+            return True
+        else:
+            print(f"Gagal menyimpan data pasien ke Supabase: {response}")
+            return False
     except Exception as e:
-        print(f"Terjadi error saat menyimpan data ke Firebase: {e}")
+        print(f"Terjadi error saat menyimpan data ke Supabase: {e}")
         return False
 
-def save_chat_history_firebase(session_id: str, chat_history: list, patient_data: dict = None):
+def save_chat_history_supabase(session_id: str, chat_history: list, patient_data: dict = None):
     """
-    Menyimpan riwayat chat ke Firebase Realtime Database.
+    Menyimpan riwayat chat ke Supabase Database.
     
     Args:
         session_id (str): ID sesi chat.
@@ -152,19 +158,19 @@ def save_chat_history_firebase(session_id: str, chat_history: list, patient_data
         bool: True jika berhasil, False jika gagal.
     """
     try:
-        ref = db.reference('chat_logs')
+        supabase = get_supabase_client()
         chat_data = {
             'session_id': session_id,
             'chat_history': chat_history,
-            'patient_data': patient_data,
-            'timestamp': {".sv": "timestamp"}  # Server timestamp
+            'patient_data': patient_data
         }
-        ref.child(session_id).set(chat_data)
-        print(f"Riwayat chat untuk sesi '{session_id}' telah berhasil disimpan ke Firebase.")
-        return True
+        response = supabase.table('chat_logs').insert(chat_data).execute()
+        if response.data:
+            print(f"Riwayat chat untuk sesi '{session_id}' telah berhasil disimpan ke Supabase.")
+            return True
+        else:
+            print(f"Gagal menyimpan riwayat chat ke Supabase: {response}")
+            return False
     except Exception as e:
-        print(f"Terjadi error saat menyimpan riwayat chat ke Firebase: {e}")
-        print(f"Error type: {type(e).__name__}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
+        print(f"Terjadi error saat menyimpan riwayat chat ke Supabase: {e}")
         return False
