@@ -70,7 +70,8 @@ def chat():
         if last_user_message.startswith('cek ') and sum(1 for msg in messages_for_llm if msg['role'] == 'user') == 1:
             # Ekstrak ID pasien dari pesan
             patient_id = last_user_message.split(' ', 1)[1].strip()
-            
+            print(f"ID pasien yang diekstrak: '{patient_id}'")  # Logging tambahan
+
             # Cari data pasien di database
             patient_data = utils.get_patient_data_by_id(patient_id)
             

@@ -186,16 +186,24 @@ def get_patient_data_by_id(patient_id: str):
     """
     try:
         supabase = get_supabase_client()
+        print(f"Mencari data pasien dengan ID: {patient_id}")  # Logging tambahan
+        
         # Query data pasien berdasarkan id_pasien
         response = supabase.table('patients').select('*').eq('id_pasien', patient_id).execute()
         
+        print(f"Respons dari Supabase: {response}")  # Logging tambahan
+        
         # Periksa apakah ada data yang ditemukan
         if response.data and len(response.data) > 0:
+            print(f"Data ditemukan: {response.data[0]}")  # Logging tambahan
             # Kembalikan data pasien pertama yang ditemukan
             return response.data[0]
         else:
             # Tidak ada data yang ditemukan
+            print(f"Tidak ada data yang ditemukan untuk ID pasien: {patient_id}")  # Logging tambahan
             return None
     except Exception as e:
         print(f"Terjadi error saat mengambil data pasien dari Supabase: {e}")
+        import traceback
+        traceback.print_exc()  # Menampilkan stack trace untuk debugging
         return None
