@@ -3,6 +3,7 @@ import os
 import re
 import random
 import string
+from firebase_admin import db
 
 def generate_patient_id(length=5):
     """Menghasilkan ID pasien acak alfanumerik dengan panjang tertentu."""
@@ -105,4 +106,62 @@ def save_patient_data(patient_id: str, name: str, age: int, gender: str, initial
         return True
     except IOError as e:
         print(f"Terjadi error saat menulis ke file: {e}")
+        return False
+
+def save_patient_data_firebase(patient_id: str, name: str, age: int, gender: str, initial_complaint: str, session_id: str = None):
+    """
+    Menyimpan data pasien ke Firebase Realtime Database.
+    
+    Args:
+        patient_id (str): ID unik untuk pasien.
+        name (str): Nama lengkap pasien.
+        age (int): Umur pasien.
+        gender (str): Jenis kelamin pasien.
+        initial_complaint (str): Keluhan awal yang disampaikan pasien.
+        session_id (str): ID sesi chat (opsional).
+        
+    Returns:
+        bool: True jika berhasil, False jika gagal.
+    """
+    try:
+        ref = db.reference('patients')
+        ref.child(patient_id).set({
+            'id_pasien': patient_id,
+            'nama': name,
+            'umur': age,
+            'gender': gender,
+            'keluhan_awal': initial_complaint,
+            'session_id': session_id
+        })
+        print(f"Data untuk pasien '{name}' ({patient_id}) telah berhasil disimpan ke Firebase.")
+        return True
+    except Exception as e:
+        print(f"Terjadi error saat menyimpan data ke Firebase: {e}")
+        return False
+
+def save_chat_history_firebase(session_id: str, chat_history: list, patient_data: dict = None):
+    """
+    Menyimpan riwayat chat ke Firebase Realtime Database.
+    
+    Args:
+        session_id (str): ID sesi chat.
+        chat_history (list): Daftar pesan chat.
+        patient_data (dict): Data pasien (opsional).
+        
+    Returns:
+        bool: True jika berhasil, False jika gagal.
+    """
+    try:
+        ref = db.reference('chat_logs')
+        chat_data = {
+            'session_id': session_id,
+            'chat_history': chat_history,
+            'patient_data': patient_data,
+            'timestamp': {".sv": "timestamp"}  # Server timestamp
+        }
+        ref.child(session_id).set(chat_data)
+        print(f"Riwayat chat untuk sesi '{session_id}' telah berhasil disimpan ke Firebase.")
+        return True
+    except Exception as e:
+        print(f"Terjadi error saat menyimpan riwayat chat ke Firebase: {e}")
         return False

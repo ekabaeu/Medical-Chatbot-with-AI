@@ -4,6 +4,23 @@ import requests
 import json
 import os
 import fnmatch
+import uuid
+
+# Impor dari file-file proyek
+import config
+from prompts import system_prompt_task_1, system_prompt_task_2, system_prompt_task_3
+import utils  # Impor seluruh modul utils
+import firebase_config  # Impor konfigurasi Firebase
+
+# --- Konfigurasi Aplikasi ---
+app = Flask(__name__)
+CORS(app) 
+
+# Initialize Firebase
+try:
+    firebase_config.initialize_firebase()
+except Exception as e:
+    print(f"Warning: Firebase not initialized: {e}")
 
 # Impor dari file-file proyek
 import config
@@ -51,6 +68,7 @@ def chat():
     """Menangani permintaan chat dari frontend dan menyimpan data pasien pada pesan pertama."""
     data = request.json
     history_from_frontend = data.get('history', [])
+    session_id = data.get('sessionId', str(uuid.uuid4()))  # Generate session ID if not provided
     if not history_from_frontend:
         return jsonify({"error": "Riwayat chat kosong"}), 400
 
@@ -64,7 +82,7 @@ def chat():
     if messages_for_llm and messages_for_llm[-1]['role'] == 'user':
         last_user_message = messages_for_llm[-1]['content'].lower()
         non_medical_keywords = [
-            '1+1', 'cuaca', 'sejarah', 'presiden', 'politik', 
+            '1+1', 'cuaca', 'sejarah', 'presiden', 'politik',
             'siapa kamu', 'matematika', 'fisika', 'berapa'
         ]
         if any(keyword in last_user_message for keyword in non_medical_keywords):
@@ -85,13 +103,23 @@ def chat():
         # Buat ID Pasien
         patient_id = utils.generate_patient_id()
         
-        # Simpan ke database.csv
+        # Simpan ke database.csv (local fallback)
         utils.save_patient_data(
             patient_id=patient_id,
             name=patient_info['nama'],
             age=patient_info['umur'],
             gender=patient_info['gender'],
             initial_complaint=initial_complaint
+        )
+        
+        # Simpan ke Firebase (primary storage)
+        utils.save_patient_data_firebase(
+            patient_id=patient_id,
+            name=patient_info['nama'],
+            age=patient_info['umur'],
+            gender=patient_info['gender'],
+            initial_complaint=initial_complaint,
+            session_id=session_id
         )
         final_system_prompt = system_prompt_task_1
     # ==========================================================
@@ -111,10 +139,11 @@ def chat():
     }
     
     response = Response(stream_with_context(stream_chutes_ai_response(payload)), mimetype='text/plain')
+    response.headers['X-Session-ID'] = session_id
+    response.headers['Access-Control-Expose-Headers'] = 'X-Patient-Data, X-Session-ID'
 
     if patient_info:
         response.headers['X-Patient-Data'] = json.dumps(patient_info)
-        response.headers['Access-Control-Expose-Headers'] = 'X-Patient-Data'
 
     return response
 
@@ -124,49 +153,23 @@ def chat():
 def save_chat():
     """Menerima data, menghapus file sesi lama, dan menyimpan file baru (rename)."""
     
-    if not os.path.exists(config.SAVE_DIR):
-        os.makedirs(config.SAVE_DIR)
-
     try:
         data = request.json
         chat_history = data.get('chatHistory', [])
         session_id = data.get('sessionId')
-        patient_data = data.get('patientData', {}) 
+        patient_data = data.get('patientData', {})
 
         if not chat_history or not session_id:
             return jsonify({"error": "Data chat atau sessionId tidak ada"}), 400
 
-        name = patient_data.get('name', 'unknown').replace(' ', '_')
-        age = patient_data.get('age', 'unknown')
-        new_filename = f"chat_{name}_{age}_{session_id}.csv"
-        new_filepath = os.path.join(config.SAVE_DIR, new_filename)
-
-        search_pattern = f"chat_*_*_{session_id}.csv"
-
-        for f in os.listdir(config.SAVE_DIR):
-            if fnmatch.fnmatch(f, search_pattern):
-                if f != new_filename:
-                    old_filepath = os.path.join(config.SAVE_DIR, f)
-                    try:
-                        os.remove(old_filepath)
-                        print(f"File lama {f} dihapus.")
-                    except OSError as e:
-                        print(f"Error menghapus file lama {f}: {e}")
-                break 
-
-        csv_content = ["Timestamp,Sender,Message\n"]
-        for row in chat_history:
-            message = row.get('message', '')
-            # Gunakan utils.escape_csv
-            line = f"{row.get('timestamp')},{row.get('sender')},{utils.escape_csv(message)}\n"
-            csv_content.append(line)
-        csv_string = "".join(csv_content)
-
-        with open(new_filepath, 'w', encoding='utf-8') as f:
-            f.write(csv_string)
+        # Simpan ke Firebase (primary storage)
+        success = utils.save_chat_history_firebase(session_id, chat_history, patient_data)
         
-        return jsonify({"message": f"Chat disimpan sebagai {new_filename}"}), 200
-
+        if success:
+            return jsonify({"message": f"Chat disimpan ke Firebase dengan session ID: {session_id}"}), 200
+        else:
+            return jsonify({"error": "Gagal menyimpan chat ke Firebase"}), 500
+            
     except Exception as e:
         print(f"Error saving chat: {e}")
         return jsonify({"error": "Gagal menyimpan chat di server"}), 500

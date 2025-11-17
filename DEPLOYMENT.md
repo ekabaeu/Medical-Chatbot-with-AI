@@ -1,114 +1,70 @@
-# Deployment Guide
+# Deployment Guide with Firebase Integration
 
-## Deploying to Vercel
+## Prerequisites
 
-This guide will walk you through deploying the Medical Chatbot application to Vercel for permanent hosting.
+1. Ensure you have the latest version of the code with Firebase integration
+2. Have a Firebase account (free tier is sufficient)
+3. Install the Vercel CLI: `npm install -g vercel`
 
-### Prerequisites
+## Firebase Setup
 
-1. A Vercel account (sign up at https://vercel.com)
-2. A GitHub account
-3. Your Chutes AI API token
+1. Create a Firebase account at https://firebase.google.com/
+2. Create a new project in the Firebase Console
+3. In the Firebase Console, go to Project Settings > Service Accounts
+4. Generate a new private key and download the JSON file
+5. Rename the downloaded file to `serviceAccountKey.json` and place it in your project root directory
 
-### Step-by-Step Deployment
+## Environment Variables Setup
 
-#### 1. Fork the Repository
-
-1. Go to your GitHub account
-2. Fork this repository to your account
-
-#### 2. Configure Environment Variables
-
-Before deploying, you'll need to set up environment variables in Vercel:
-
-1. In your Vercel dashboard, select your project
-2. Go to Settings > Environment Variables
-3. Add the following variable:
-   - Name: `CHUTES_API_TOKEN`
-   - Value: Your actual Chutes AI API token
-
-#### 3. Deploy via Vercel Dashboard
-
-1. Go to your Vercel dashboard
-2. Click "New Project"
-3. Import your forked repository
-4. Configure the project:
-   - Framework Preset: `Other`
-   - Root Directory: Leave as default
-   - Build Command: Leave as default (Vercel will auto-detect)
-   - Output Directory: Leave as default
-5. Click "Deploy"
-
-#### 4. Alternative: Deploy via Vercel CLI
-
-If you prefer using the command line:
-
-1. Install Vercel CLI:
-   ```bash
-   npm install -g vercel
-   ```
-
-2. Log in to your Vercel account:
-   ```bash
-   vercel login
-   ```
-
-3. Deploy the project:
-   ```bash
-   vercel
-   ```
-
-4. Follow the prompts to configure your project
-
-### Configuration Files
-
-This project includes several configuration files for Vercel deployment:
-
-- `vercel.json`: Main configuration for Vercel deployment
-- `requirements.txt`: Python dependencies
-- `static.json`: Configuration for serving static files
-- `.env.example`: Example environment variables
-
-### Important Notes
-
-1. **API Token Security**: Never commit your actual API tokens to the repository. Always use environment variables.
-
-2. **File Storage**: The application saves chat logs to CSV files. In a production environment on Vercel, these files are stored in the serverless function's temporary file system and may be lost when the function scales down. For persistent storage, consider using a database or external storage service.
-
-3. **CORS**: The application is configured to handle CORS properly for frontend-backend communication.
-
-4. **Frontend-Backend Integration**: The frontend automatically uses the same origin as the backend when deployed, so no manual configuration is needed for the API endpoints.
-
-### Troubleshooting
-
-#### Common Issues
-
-1. **Deployment Fails**: Check the build logs in your Vercel dashboard for specific error messages.
-
-2. **API Calls Failing**: Ensure your `CHUTES_API_TOKEN` environment variable is correctly set in Vercel.
-
-3. **CORS Errors**: The application should already be configured correctly, but if you encounter issues, check that the CORS middleware is properly configured in `app.py`.
-
-#### Checking Logs
-
-You can view detailed logs for your deployment in the Vercel dashboard:
-1. Go to your project in the Vercel dashboard
-2. Click on the deployment you want to inspect
-3. View the logs for build and runtime information
-
-### Updating Your Deployment
-
-To update your deployed application after making changes:
-
-1. Push your changes to your GitHub repository
-2. Vercel will automatically redeploy your application
-3. Or manually trigger a new deployment from the Vercel dashboard
-
-### Custom Domain (Optional)
-
-To use a custom domain:
+You need to set the following environment variables in your Vercel project:
 
 1. In your Vercel dashboard, go to your project settings
-2. Navigate to the "Domains" section
-3. Add your custom domain
-4. Follow the instructions to configure DNS records with your domain provider
+2. Navigate to the "Environment Variables" section
+3. Add the following variables:
+
+```
+FIREBASE_PROJECT_ID=your_firebase_project_id
+FIREBASE_PRIVATE_KEY_ID=your_private_key_id
+FIREBASE_PRIVATE_KEY=your_private_key (replace \n with actual newlines)
+FIREBASE_CLIENT_EMAIL=your_client_email
+FIREBASE_CLIENT_ID=your_client_id
+FIREBASE_CLIENT_CERT_URL=your_client_cert_url
+CHUTES_API_TOKEN=your_chutes_api_token
+```
+
+To get these values:
+1. Open your `serviceAccountKey.json` file
+2. Extract the corresponding values from the JSON file
+3. For the `FIREBASE_PRIVATE_KEY`, make sure to replace literal `\n` characters with actual newlines when setting the environment variable
+
+## Deployment Steps
+
+1. Commit all your changes to git
+2. Run `vercel` in your project directory
+3. Follow the prompts to deploy your project
+4. When asked about environment variables, you can either:
+   - Set them during the deployment process
+   - Set them in the Vercel dashboard after deployment
+
+## Testing the Deployment
+
+1. After deployment, visit your deployed URL
+2. Start a new chat session
+3. Provide patient information in your first message
+4. Continue the conversation with medical questions
+5. End the session and check if:
+   - Patient data appears in your Firebase Realtime Database under `patients`
+   - Chat history appears in your Firebase Realtime Database under `chat_logs`
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. Check the Vercel function logs for any error messages
+2. Verify all environment variables are correctly set
+3. Ensure your Firebase project has Realtime Database enabled
+4. Check that your service account has the necessary permissions
+
+## Local Development
+
+For local development, create a `.env` file in your project root with the same variables as above. Make sure to add `serviceAccountKey.json` to your `.gitignore` file to avoid committing it to version control.
