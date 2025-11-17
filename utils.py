@@ -188,20 +188,35 @@ def get_patient_data_by_id(patient_id: str):
         supabase = get_supabase_client()
         print(f"Mencari data pasien dengan ID: {patient_id}")  # Logging tambahan
         
-        # Query data pasien berdasarkan id_pasien
-        response = supabase.table('patients').select('*').eq('id_pasien', patient_id).execute()
+        # Coba beberapa varian pencarian
+        variants = [
+            patient_id,  # ID asli
+            patient_id.strip(),  # Tanpa spasi
+            patient_id.lower(),  # Huruf kecil
+            patient_id.upper()   # Huruf besar
+        ]
         
-        print(f"Respons dari Supabase: {response}")  # Logging tambahan
+        for variant in variants:
+            print(f"Mencoba varian ID: '{variant}'")  # Logging tambahan
+            # Query data pasien berdasarkan id_pasien
+            response = supabase.table('patients').select('*').eq('id_pasien', variant).execute()
+            
+            print(f"Respons dari Supabase untuk varian '{variant}': {response}")  # Logging tambahan
+            
+            # Periksa apakah ada data yang ditemukan
+            if response.data and len(response.data) > 0:
+                print(f"Data ditemukan: {response.data[0]}")  # Logging tambahan
+                # Kembalikan data pasien pertama yang ditemukan
+                return response.data[0]
         
-        # Periksa apakah ada data yang ditemukan
-        if response.data and len(response.data) > 0:
-            print(f"Data ditemukan: {response.data[0]}")  # Logging tambahan
-            # Kembalikan data pasien pertama yang ditemukan
-            return response.data[0]
-        else:
-            # Tidak ada data yang ditemukan
-            print(f"Tidak ada data yang ditemukan untuk ID pasien: {patient_id}")  # Logging tambahan
-            return None
+        # Jika masih tidak ditemukan, coba tanpa filter spesifik
+        print("Mencoba pencarian tanpa filter spesifik...")
+        response = supabase.table('patients').select('*').execute()
+        print(f"Semua data dalam tabel: {response.data}")  # Logging tambahan
+        
+        # Tidak ada data yang ditemukan
+        print(f"Tidak ada data yang ditemukan untuk ID pasien: {patient_id}")  # Logging tambahan
+        return None
     except Exception as e:
         print(f"Terjadi error saat mengambil data pasien dari Supabase: {e}")
         import traceback
