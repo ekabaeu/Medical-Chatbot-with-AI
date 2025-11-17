@@ -173,3 +173,29 @@ def save_chat_history_supabase(session_id: str, chat_history: list, patient_data
     except Exception as e:
         print(f"Terjadi error saat menyimpan riwayat chat ke Supabase: {e}")
         return False
+
+def get_patient_data_by_id(patient_id: str):
+    """
+    Mengambil data pasien dari database Supabase berdasarkan ID pasien.
+    
+    Args:
+        patient_id (str): ID pasien yang akan dicari.
+        
+    Returns:
+        dict: Data pasien jika ditemukan, None jika tidak ditemukan.
+    """
+    try:
+        supabase = get_supabase_client()
+        # Query data pasien berdasarkan id_pasien
+        response = supabase.table('patients').select('*').eq('id_pasien', patient_id).execute()
+        
+        # Periksa apakah ada data yang ditemukan
+        if response.data and len(response.data) > 0:
+            # Kembalikan data pasien pertama yang ditemukan
+            return response.data[0]
+        else:
+            # Tidak ada data yang ditemukan
+            return None
+    except Exception as e:
+        print(f"Terjadi error saat mengambil data pasien dari Supabase: {e}")
+        return None

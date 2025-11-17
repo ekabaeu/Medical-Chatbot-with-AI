@@ -66,4 +66,3 @@ system_prompt_task_3 = {
         "**JANGAN PERNAH** menggunakan format analisis lagi. Jawab pertanyaan lanjutan pengguna (yang terkait medis) dengan singkat dan natural."
     )
 }
-
