@@ -64,11 +64,12 @@ def chat():
             messages_for_llm.append({"role": role, "content": content})
 
     if messages_for_llm and messages_for_llm[-1]['role'] == 'user':
-        last_user_message = messages_for_llm[-1]['content'].lower()
+        last_user_message = messages_for_llm[-1]['content']  # Tanpa .lower()
+        last_user_message_lower = last_user_message.lower()  # Versi huruf kecil untuk pengecekan
         
         # Cek apakah pesan adalah permintaan untuk melihat data pasien
-        if last_user_message.startswith('cek ') and sum(1 for msg in messages_for_llm if msg['role'] == 'user') == 1:
-            # Ekstrak ID pasien dari pesan
+        if last_user_message_lower.startswith('cek ') and sum(1 for msg in messages_for_llm if msg['role'] == 'user') == 1:
+            # Ekstrak ID pasien dari pesan (mempertahankan case asli)
             patient_id = last_user_message.split(' ', 1)[1].strip()
             print(f"ID pasien yang diekstrak: '{patient_id}'")  # Logging tambahan
 
@@ -93,11 +94,12 @@ def chat():
                 yield response_text
             return Response(stream_with_context(generate_patient_data_response()), mimetype='text/plain')
         
+        # Untuk pengecekan kata kunci non-medis, gunakan versi huruf kecil
         non_medical_keywords = [
             '1+1', 'cuaca', 'sejarah', 'presiden', 'politik',
             'siapa kamu', 'matematika', 'fisika', 'berapa'
         ]
-        if any(keyword in last_user_message for keyword in non_medical_keywords):
+        if any(keyword in last_user_message_lower for keyword in non_medical_keywords):
             def generate_refusal():
                 yield "Maaf, saya hanya dapat memproses pertanyaan terkait kesehatan."
             return Response(stream_with_context(generate_refusal()), mimetype='text/plain')
