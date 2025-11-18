@@ -11,3 +11,5 @@ __pycache__/
 
 # Chat logs
 /chat_logs/
+
+.kilocodemodes

@@ -38,4 +38,4 @@ def get_supabase_client() -> Client:
         return supabase
     except Exception as e:
         print(f"Error creating Supabase client: {e}")
-        raise e
+        raise

@@ -47,9 +47,7 @@ def extract_patient_info(message: str):
     words = cleaned_message.split()
     if words:
         # Asumsikan kata pertama adalah nama
-        potential_name = words[0]
-        # Kapitalisasi huruf pertama
-        info['nama'] = potential_name.capitalize()
+        info['nama'] = words[0].capitalize()
 
     # Extract the actual complaint by removing patient info from the message
     complaint = message
@@ -94,7 +92,6 @@ def save_patient_data_supabase(patient_id: str, name: str, age: int, gender: str
         }
         response = supabase.table('patients').insert(patient_data).execute()
         if response.data:
-            print(f"Data untuk pasien '{name}' ({patient_id}) telah berhasil disimpan ke Supabase.")
             return True
         else:
             print(f"Gagal menyimpan data pasien ke Supabase: {response}")
@@ -118,11 +115,6 @@ def save_chat_history_supabase(session_id: str, chat_history: list, patient_data
     try:
         supabase = get_supabase_client()
         
-        # Logging untuk debugging - cek apakah sudah ada data dengan session_id ini
-        print(f"Menyimpan chat history untuk session_id: {session_id}")
-        existing_data = supabase.table('chat_logs').select('*').eq('session_id', session_id).execute()
-        print(f"Data yang sudah ada dengan session_id {session_id}: {existing_data.data}")
-        
         chat_data = {
             'session_id': session_id,
             'chat_history': chat_history,
@@ -130,15 +122,13 @@ def save_chat_history_supabase(session_id: str, chat_history: list, patient_data
         }
         
         # Jika sudah ada data dengan session_id ini, update daripada insert
+        existing_data = supabase.table('chat_logs').select('*').eq('session_id', session_id).execute()
         if existing_data.data:
-            print(f"Updating existing chat log for session_id: {session_id}")
             response = supabase.table('chat_logs').update(chat_data).eq('session_id', session_id).execute()
         else:
-            print(f"Inserting new chat log for session_id: {session_id}")
             response = supabase.table('chat_logs').insert(chat_data).execute()
             
         if response.data:
-            print(f"Riwayat chat untuk sesi '{session_id}' telah berhasil disimpan ke Supabase.")
             return True
         else:
             print(f"Gagal menyimpan riwayat chat ke Supabase: {response}")
@@ -172,25 +162,15 @@ def get_patient_data_by_id(patient_id: str):
         ]
         
         for variant in variants:
-            print(f"Mencoba varian ID: '{variant}'")  # Logging tambahan
             # Query data pasien berdasarkan id_pasien
             response = supabase.table('patients').select('*').eq('id_pasien', variant).execute()
             
-            print(f"Respons dari Supabase untuk varian '{variant}': {response}")  # Logging tambahan
-            
             # Periksa apakah ada data yang ditemukan
             if response.data and len(response.data) > 0:
-                print(f"Data ditemukan: {response.data[0]}")  # Logging tambahan
                 # Kembalikan data pasien pertama yang ditemukan
                 return response.data[0]
         
-        # Jika masih tidak ditemukan, coba tanpa filter spesifik
-        print("Mencoba pencarian tanpa filter spesifik...")
-        response = supabase.table('patients').select('*').execute()
-        print(f"Semua data dalam tabel: {response.data}")  # Logging tambahan
-        
         # Tidak ada data yang ditemukan
-        print(f"Tidak ada data yang ditemukan untuk ID pasien: {patient_id}")  # Logging tambahan
         return None
     except Exception as e:
         print(f"Terjadi error saat mengambil data pasien dari Supabase: {e}")
