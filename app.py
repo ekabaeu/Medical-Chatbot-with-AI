@@ -112,20 +112,22 @@ def chat():
     # === LOGIKA PENYIMPANAN DATA PASIEN PADA PESAN PERTAMA ===
     if user_message_count == 1:
         initial_complaint = messages_for_llm[-1]['content']
-        
+        print(f"DEBUG: Initial complaint before processing: {initial_complaint}")  # Debug log
+         
         # Ekstrak info dari pesan
         patient_info = utils.extract_patient_info(initial_complaint)
-        
+        print(f"DEBUG: Extracted patient info: {patient_info}")  # Debug log
+         
         # Buat ID Pasien
         patient_id = utils.generate_patient_id()
-        
+         
         # Simpan ke Supabase (primary storage)
         utils.save_patient_data_supabase(
             patient_id=patient_id,
             name=patient_info['nama'],
             age=patient_info['umur'],
             gender=patient_info['gender'],
-            initial_complaint=initial_complaint,
+            initial_complaint=patient_info['keluhan_awal'],
             session_id=session_id
         )
         final_system_prompt = system_prompt_task_1
