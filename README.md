@@ -139,8 +139,8 @@ The application requires the following environment variables to be set in a `.en
 
 When starting a conversation, provide information in this format:
 ```
-[Your Name] [Age] [Gender] [Initial Complaint]
-Example: John 25 male I have a headache and fever
+[Your Name], [Age], [Gender], [Initial Complaint]
+Michael, 45 tahun, laki-laki, sakit kepala
 ```
 
 ## API Endpoints
@@ -235,15 +235,3 @@ Medical Chatbot with AI/
 ├── .gitignore             # Git ignore rules
 └── .env                   # Environment variables (not included in repo)
 ```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a pull request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
