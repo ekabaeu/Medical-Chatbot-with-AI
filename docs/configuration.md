@@ -96,6 +96,14 @@ The Vercel configuration file that defines how the application is built and depl
     {
       "src": "index.html",
       "use": "@vercel/static"
+    },
+    {
+      "src": "style.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "script.js",
+      "use": "@vercel/static"
     }
   ]
 }
@@ -108,6 +116,18 @@ The Vercel configuration file that defines how the application is built and depl
     {
       "src": "/chat",
       "dest": "app.py"
+    },
+    {
+      "src": "/save-chat",
+      "dest": "app.py"
+    },
+    {
+      "src": "/(index.html|style.css|script.js)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }

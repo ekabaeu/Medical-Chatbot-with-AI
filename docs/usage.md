@@ -132,32 +132,42 @@ Michael, 45 tahun, laki-laki, sakit kepala
 #### Chat Header
 - Displays "Medical Chat Assistant"
 - Remains fixed at the top of the interface
+- Features a green gradient color scheme for medical theme
+- Includes subtle shadow effects for depth
 
 #### Message Area
-- Shows conversation history
-- User messages appear on the right (green bubbles)
-- Bot responses appear on the left (gray bubbles)
+- Shows conversation history with scrollable container
+- User messages appear on the right (green gradient bubbles)
+- Bot responses appear on the left (light gray gradient bubbles)
 - Auto-scrolls to show latest messages
+- Background with subtle radial pattern for visual interest
+- Smooth fade-in animations for new messages
 
 #### Input Area
-- Text input field for typing messages
-- Send button (➤) to submit messages
+- Text input field for typing messages with placeholder text
+- Send button (➤) to submit messages with hover effects
 - Supports Enter key for submission
+- Responsive design with proper spacing
+- Focus effects with green border highlighting
 
 ### Message Features
 
 #### User Messages
-- Right-aligned green bubbles
+- Right-aligned green gradient bubbles with speech bubble styling
 - Display exactly what you typed
 - Timestamp not shown but recorded in history
+- Smooth fade-in animation when appearing
 
 #### Bot Messages
-- Left-aligned gray bubbles
+- Left-aligned light gray gradient bubbles with speech bubble styling
 - Support markdown formatting:
   - **Bold text** for emphasis
   - *Italic text* for additional information
   - Bullet points for lists
   - Line breaks for readability
+- Real-time streaming display (character by character)
+- Safe HTML rendering with sanitization
+- Smooth fade-in animation when appearing
 
 ### Special Interactions
 
@@ -165,11 +175,14 @@ Michael, 45 tahun, laki-laki, sakit kepala
 - Bot responses appear character by character
 - Provides immediate feedback during processing
 - Indicates the system is actively working
+- Smooth scrolling to follow the text as it appears
 
 #### Auto-save Functionality
 - Conversations automatically save after each interaction
 - No manual save required
 - Session data persists between interactions
+- Works in the background without interrupting chat
+- Error handling for failed saves
 
 ## Special Features
 
@@ -250,18 +263,30 @@ Bot responses support markdown formatting for better readability:
 - Responsive design works on mobile devices
 - Touch-friendly interface elements
 - Optimized for both portrait and landscape modes
+- Hamburger menu navigation for mobile devices
+- Properly sized touch targets for easy interaction
+- Mobile-first design approach with progressive enhancement
 
 ### Error Handling
 
 #### Connection Errors
-- System automatically displays error messages
+- System automatically displays error messages in red text
 - Provides guidance on next steps
 - Maintains chat history locally
+- Retries failed auto-save operations
 
 #### Processing Errors
 - Detailed error messages in browser console
 - Graceful degradation of functionality
 - Option to retry failed operations
+- Visual feedback for error states
+
+#### UI Issues
+- Check that JavaScript is enabled in your browser
+- Ensure your browser is up to date
+- Try clearing browser cache and cookies
+- Disable browser extensions that might interfere
+- Check browser console (F12) for detailed error information
 
 ## Best Practices
 

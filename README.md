@@ -32,10 +32,14 @@ The application integrates with Chutes AI for natural language processing and Su
 - Real-time chat interface with streaming responses
 - Patient data extraction and storage
 - Automatic chat history saving
-- Responsive web interface
+- Responsive web interface with modern UI design
+- Mobile-friendly layout with hamburger menu navigation
 - Secure API integration with Chutes AI
 - Database integration with Supabase
-- Markdown support for rich text responses
+- Markdown support for rich text responses with HTML sanitization
+- Gradient-based modern design with smooth animations
+- Session management with auto-generated unique identifiers
+- Error handling for API communication failures
 
 ## Technology Stack
 
@@ -47,11 +51,16 @@ The application integrates with Chutes AI for natural language processing and Su
 - **python-dotenv** - Environment variable management
 
 ### Frontend
-- **HTML5**
-- **CSS3**
-- **JavaScript (ES6+)**
-- **Marked.js** - Markdown parsing
-- **DOMPurify** - HTML sanitization
+- **HTML5** - Semantic markup and structure
+- **CSS3** - Modern styling with flexbox, gradients, and animations
+- **JavaScript (ES6+)** - Modern JavaScript features for dynamic functionality
+- **Marked.js** - Markdown parsing for rich text responses
+- **DOMPurify** - HTML sanitization for security
+- **Fetch API** - Modern HTTP client for API communication
+- **TextDecoder API** - Handling streaming response data
+- **CSS Grid & Flexbox** - Responsive layout design
+- **CSS Media Queries** - Mobile-responsive design
+- **CSS Animations** - Smooth transitions and effects
 
 ### Deployment
 - **Vercel** - Hosting platform
@@ -218,9 +227,9 @@ Medical Chatbot with AI/
 ├── config.py              # Configuration settings
 ├── prompts.py             # AI system prompts
 ├── utils.py               # Utility functions
-├── index.html             # Main HTML interface
-├── style.css              # Styling
-├── script.js              # Frontend JavaScript
+├── index.html             # Main HTML interface with chat container
+├── style.css              # Modern styling with responsive design
+├── script.js              # Frontend JavaScript with streaming API communication
 ├── requirements.txt       # Python dependencies
 ├── vercel.json            # Vercel deployment config
 ├── .gitignore             # Git ignore rules

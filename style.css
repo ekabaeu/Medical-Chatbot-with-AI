@@ -7,95 +7,174 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: #f0f4f0;
+    background: linear-gradient(135deg, #f0f4f0 0%, #e3f2fd 100%);
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     color: #333;
-    font-size: 14px;
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    padding: 1rem;
+}
+
+/* Scalable Typography */
+.scalable-text {
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
+    line-height: 1.5;
+}
+
+/* Flexible Grid Container */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    width: 100%;
+    max-width: 1200px;
+    padding: 1rem;
+    margin: 0 auto;
 }
 
 /* --- CSS UNTUK MODAL/FORMULIR TELAH DIHAPUS --- */
 
 /* Kontainer Chat */
 #chat-container {
-    width: 90%;
+    width: 100%;
     max-width: 800px;
-    height: 90vh;
+    height: 80vh;
     max-height: 700px;
     background-color: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
 #chat-header {
-    background-color: #4CAF50;
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
     color: white;
     font-weight: 600;
-    font-size: 1.1em;
+    font-size: 1.25rem;
     border-bottom: 1px solid #45a049;
-    padding: 16px 20px;
+    padding: 1rem;
     text-align: center;
+    position: relative;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Hamburger Menu Icon */
+.menu-toggle {
+    display: none;
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Navigation Menu */
+.nav-menu {
+    display: flex;
+    justify-content: center;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-menu li {
+    margin: 0 0.5rem;
+}
+
+.nav-menu a {
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 1rem;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.nav-menu a:hover {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 #chat-box {
     flex-grow: 1;
     overflow-y: auto;
-    padding: 20px;
-    background-color: #ffffff;
+    padding: 1rem;
+    background-color: #fafafa;
     display: flex;
     flex-direction: column;
+    background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
+    background-size: 20px 20px;
 }
 
 .message {
-    margin-bottom: 15px;
+    margin-bottom: 0.75rem;
     max-width: 85%;
     line-height: 1.5;
     word-wrap: break-word;
-    padding: 12px 18px;
-    border-radius: 20px;
+    padding: 0.75rem 1rem;
+    border-radius: 1.25rem;
+    animation: fadeIn 0.3s ease-in-out;
 }
 
 /* Pesan dari Pengguna (KE KANAN, UKURAN PAS) */
 .user-message {
-    background-color: #4CAF50;
+    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
     color: white;
     border-radius: 20px 20px 5px 20px;
     align-self: flex-end;
     margin-left: auto;
     text-align: right;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 /* Pesan dari Bot (KE KIRI) */
 .bot-message {
-    background-color: #f1f1f1;
+    background: linear-gradient(135deg, #f1f1f1 0%, #e0e0e0 100%);
     color: #333;
     border: 1px solid #e0e0e0;
     border-radius: 20px 20px 20px 5px;
     align-self: flex-start;
     margin-right: auto;
     text-align: left;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 #input-area {
     display: flex;
-    padding: 15px;
+    padding: 1rem;
     border-top: 1px solid #e0e0e0;
-    background-color: #f9f9f9;
-    flex-shrink: 0; 
+    background-color: #ffffff;
+    flex-shrink: 0;
+    gap: 0.5rem;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05);
 }
 #user-input {
     flex-grow: 1;
-    border: 1px solid #ccc;
-    border-radius: 20px;
-    padding: 12px 18px;
-    font-size: 14px;
-    margin-right: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 1.25rem;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
     transition: border-color 0.3s, box-shadow 0.3s;
+    min-height: 3rem;
+    outline: none;
+    background-color: #f9f9f9;
 }
 
 #user-input:focus {
@@ -106,17 +185,94 @@ body {
 
 #send-button {
     border: none;
-    background-color: #4CAF50;
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
     color: white;
     border-radius: 50%;
-    width: 48px;
-    height: 48px;
-    font-size: 18px;
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.25rem;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: all 0.3s ease;
     flex-shrink: 0;
+    min-height: 3rem;
+    min-width: 3rem;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 #send-button:hover {
     background-color: #45a049;
+    transform: scale(1.05);
+}
+
+#send-button:active {
+    transform: scale(0.95);
+}
+
+/* Media Queries for Responsive Design */
+@media (min-width: 768px) {
+    #chat-container {
+        width: 90%;
+        max-width: 800px;
+        height: 90vh;
+        max-height: 700px;
+        border-radius: 0.75rem;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    #chat-header {
+        font-size: 1.1em;
+        padding: 1rem 1.25rem;
+    }
+    
+    .message {
+        padding: 0.75rem 1rem;
+    }
+    
+    #user-input {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+    
+    #send-button {
+        width: 3rem;
+        height: 3rem;
+        font-size: 1.25rem;
+    }
+}
+
+/* Mobile Navigation */
+@media (max-width: 767px) {
+    .menu-toggle {
+        display: block;
+    }
+    
+    .nav-menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: #4CAF50;
+        flex-direction: column;
+        align-items: center;
+        padding: 1rem 0;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        display: none;
+    }
+    
+    .nav-menu.active {
+        display: flex;
+    }
+    
+
+/* Fade-in Animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.nav-menu li {
+    margin: 0.5rem 0;
+}
 }
