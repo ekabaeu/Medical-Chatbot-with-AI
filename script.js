@@ -4,8 +4,9 @@ const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
 
 // --- Variabel Global ---
-const BACKEND_URL = 'http://localhost:5000';
-let chatHistory = []; 
+// Use the same origin for backend when deployed to Vercel
+const BACKEND_URL = window.location.origin;
+let chatHistory = [];
 let sessionId = null; // Akan diisi saat pesan pertama
 let patientData = { name: 'unknown', age: 'unknown' }; // Menyimpan data pasien
 
@@ -18,7 +19,7 @@ userInput.addEventListener('keypress', (e) => {
 // --- FUNGSI: Simpan chat secara otomatis ---
 async function autoSaveChat() {
     if (chatHistory.length === 0 || !sessionId) {
-        return; 
+        return;
     }
     
     // Kirim data pasien yang sudah diekstrak
@@ -28,7 +29,7 @@ async function autoSaveChat() {
         patientData: patientData // Sertakan data pasien
     };
     
-    const SAVE_URL = `${BACKEND_URL}/save-chat`; 
+    const SAVE_URL = `${BACKEND_URL}/save-chat`;
 
     try {
         const response = await fetch(SAVE_URL, {
@@ -38,8 +39,6 @@ async function autoSaveChat() {
         });
         if (!response.ok) {
             console.error('Auto-save failed:', await response.json());
-        } else {
-            console.log('Chat auto-saved successfully.');
         }
     } catch (error) {
         console.error('Error auto-saving chat:', error);
@@ -113,7 +112,7 @@ async function getBotResponse() {
         if (patientHeader) {
             try {
                 const parsedData = JSON.parse(patientHeader);
-                // Hanya perbarui jika data baru valid
+                // Perbarui data pasien jika tersedia
                 if (parsedData.nama && parsedData.nama !== 'unknown') {
                     patientData.name = parsedData.nama;
                 }
@@ -125,7 +124,6 @@ async function getBotResponse() {
                 console.error('Failed to parse patient data from header:', e);
             }
         }
-        // -----------------------------------------
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -147,10 +145,10 @@ async function getBotResponse() {
         const errorMsg = 'Maaf, terjadi kesalahan: ' + error.message;
         botMessageElement.innerHTML = errorMsg;
         botMessageElement.style.color = 'red';
-        botMessageObj.message = errorMsg; // Perbarui objek riwayat juga
+        botMessageObj.message = errorMsg;
     }
     
-    // Simpan ke CSV (dengan data pasien terbaru)
+    // Simpan chat dengan data pasien terbaru
     await autoSaveChat();
 }
 
