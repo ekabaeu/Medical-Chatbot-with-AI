@@ -1,138 +1,240 @@
-# **Quick-Deploy Flask \+ JS menggunakan Cloudflare Quick Tunnels**
+# Medical Chatbot with AI
 
-Panduan ini menunjukkan cara menjalankan demo aplikasi full-stack (Flask backend \+ JS/HTML frontend) secara publik menggunakan Cloudflare Quick Tunnels (.trycloudflare.com).
+A Flask-based medical chatbot application that uses AI to assist patients with initial medical consultations. The application features a three-stage diagnostic process that collects patient information, analyzes symptoms, and provides medical recommendations.
 
-Ini adalah cara cepat untuk melakukan tes, tetapi **bukan** untuk hosting permanen.
+## Table of Contents
 
-🚨 **PERINGATAN PENTING:**
+- [Project Overview](#project-overview)
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [API Endpoints](#api-endpoints)
+- [Deployment](#deployment)
+- [Project Structure](#project-structure)
+- [Contributing](#contributing)
+- [License](#license)
 
-* Ini hanya untuk **tes dan demo**.  
-* URL .trycloudflare.com yang Anda dapatkan bersifat **SEMENTARA**.  
-* Jika Anda menutup terminal atau me-restart server, URL akan **mati** dan Anda akan mendapatkan URL **baru** saat menjalankannya lagi.  
-* Anda harus menjalankan **4 terminal** secara bersamaan agar ini berfungsi.
+## Project Overview
 
-## **Prasyarat**
+The Medical Chatbot with AI is designed to provide preliminary medical assistance by engaging patients in a structured conversation. The application follows a three-stage approach:
 
-* **cloudflared:** Pastikan cloudflared sudah terinstal di sistem Anda.  
-* **Python 3:** Dibutuhkan untuk menjalankan server Flask dan server file sederhana.  
-* **Folder Proyek:**  
-  * /folder-backend/ (berisi app.py)  
-  * /folder-frontend/ (berisi index.html, script.js, style.css)
+1. **Information Collection**: Gather initial patient information and complaints
+2. **Symptom Analysis**: Ask targeted diagnostic questions based on the initial complaint
+3. **Medical Recommendation**: Provide analysis, possible causes, and recommendations
 
-## **Langkah-langkah (Membutuhkan 4 Terminal)**
+The application integrates with Chutes AI for natural language processing and Supabase for data storage.
 
-### **1\. Backend: Jalankan Server Flask (Terminal 1\)**
+## Features
 
-Pastikan backend Flask Anda menggunakan **CORS** agar frontend dapat mengaksesnya. Jika belum, instal flask-cors.
+- Three-stage medical consultation process
+- Real-time chat interface with streaming responses
+- Patient data extraction and storage
+- Automatic chat history saving
+- Responsive web interface
+- Secure API integration with Chutes AI
+- Database integration with Supabase
+- Markdown support for rich text responses
 
-pip install Flask flask-cors
+## Technology Stack
 
-Buat file app.py Anda seperti ini:
+### Backend
+- **Python 3.x**
+- **Flask** - Web framework
+- **Chutes AI API** - AI model integration
+- **Supabase** - Database storage
+- **python-dotenv** - Environment variable management
 
-\# Di dalam: /folder-backend/app.py
+### Frontend
+- **HTML5**
+- **CSS3**
+- **JavaScript (ES6+)**
+- **Marked.js** - Markdown parsing
+- **DOMPurify** - HTML sanitization
 
-from flask import Flask, jsonify  
-from flask\_cors import CORS \# 1\. Impor CORS
+### Deployment
+- **Vercel** - Hosting platform
 
-app \= Flask(\_\_name\_\_)  
-CORS(app) \# 2\. Tambahkan ini untuk mengizinkan SEMUA origin
+## Installation
 
-@app.route('/api/generate') \# Ganti dengan rute Anda  
-def get\_data():  
-    \# ...logika Anda memanggil Ollama...  
-    return jsonify({"message": "Respons dari backend"})
+### Prerequisites
 
-if \_\_name\_\_ \== '\_\_main\_\_':  
-    app.run(port=5000) \# 3\. Jalankan di port 5000
+- Python 3.7 or higher
+- pip (Python package installer)
+- Node.js and npm (for development tools)
+- Supabase account
+- Chutes AI API token
 
-**Jalankan server Flask:**
+### Setup Instructions
 
-\# Buka Terminal 1  
-cd /path/ke/folder-backend  
-python app.py
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd Medical-Chatbot-with-AI
+   ```
 
-### **2\. Backend: Jalankan Tunnel (Terminal 2\)**
+2. **Create a virtual environment:**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
 
-Ini akan membuat URL publik untuk backend Flask Anda.
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-\# Buka Terminal 2  
-cloudflared tunnel \--url localhost:5000
+4. **Set up environment variables:**
+   Create a `.env` file in the root directory with the following variables:
+   ```env
+   CHUTES_API_TOKEN=your_chutes_api_token
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_KEY=your_supabase_key
+   ```
 
-Terminal akan menampilkan URL. **Salin URL ini**.
+5. **Run the application:**
+   ```bash
+   python app.py
+   ```
 
-\+-----------------------------------------------------------+  
-|  Your quick Tunnel is following this URL:                 |  
-|  \[https://backend-url-anda.trycloudflare.com\](https://backend-url-anda.trycloudflare.com)               |  
-\+-----------------------------------------------------------+
+## Configuration
 
-### **3\. Frontend: Edit Kode & Jalankan Server (Terminal 3\)**
+### Environment Variables
 
-**Bagian A: Edit script.js**
+The application requires the following environment variables to be set in a `.env` file:
 
-Tempelkan URL backend dari Langkah 2 ke file JavaScript frontend Anda.
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `CHUTES_API_TOKEN` | API token for Chutes AI service | Yes |
+| `SUPABASE_URL` | URL of your Supabase project | Yes |
+| `SUPABASE_KEY` | API key for your Supabase project | Yes |
 
-// Di dalam: /folder-frontend/script.js
+### Configuration Files
 
-const BACKEND\_URL \= '\[https://backend-url-anda.trycloudflare.com\](https://backend-url-anda.trycloudflare.com)';
+- [`config.py`](config.py) - Main configuration file
+- [`prompts.py`](prompts.py) - System prompts for different stages
+- [`vercel.json`](vercel.json) - Vercel deployment configuration
 
-// ... sisa kode fetch Anda ...  
-// contoh: fetch(BACKEND\_URL \+ '/api/generate')
+## Usage
 
-**Bagian B: Sajikan (Serve) Frontend**
+1. Open the application in your web browser
+2. Enter your name, age, gender, and initial complaint in the chat input
+3. Follow the three-stage consultation process:
+   - Stage 1: Answer 3 diagnostic questions
+   - Stage 2: Receive medical analysis and recommendations
+   - Stage 3: Ask follow-up questions (medical only)
+4. View your chat history and patient data
 
-Kita perlu menyajikan file HTML/JS Anda dari port lokal (misal: 8000).
+### Patient Data Format
 
-\# Buka Terminal 3  
-\# Pindah ke folder frontend Anda  
-cd /path/ke/folder-frontend
+When starting a conversation, provide information in this format:
+```
+[Your Name] [Age] [Gender] [Initial Complaint]
+Example: John 25 male I have a headache and fever
+```
 
-\# Sajikan file di port 8000  
-python \-m http.server 8000
+## API Endpoints
 
-### **4\. Frontend: Jalankan Tunnel (Terminal 4\)**
+### POST `/chat`
 
-Ini akan membuat URL publik untuk frontend Anda.
+Process chat messages through the three-stage diagnostic system.
 
-\# Buka Terminal 4  
-cloudflared tunnel \--url localhost:8000
+**Request Body:**
+```json
+{
+  "history": [
+    {
+      "timestamp": "ISO timestamp",
+      "sender": "User|Bot",
+      "message": "Message content"
+    }
+  ],
+  "sessionId": "unique session identifier"
+}
+```
 
-Terminal akan menampilkan URL frontend publik Anda.
+**Response:**
+- Streaming text response with medical information
+- Headers containing patient data and session ID
 
-\+-----------------------------------------------------------+  
-|  Your quick Tunnel is following this URL:                 |  
-|  \[https://frontend-url-anda.trycloudflare.com\](https://frontend-url-anda.trycloudflare.com)              |  
-\+-----------------------------------------------------------+
+### POST `/save-chat`
 
-## **Selesai\!**
+Save chat history to the database.
 
-Buka **URL Frontend** (https://frontend-url-anda.trycloudflare.com dari Langkah 4\) di browser Anda.
+**Request Body:**
+```json
+{
+  "chatHistory": [
+    {
+      "timestamp": "ISO timestamp",
+      "sender": "User|Bot",
+      "message": "Message content"
+    }
+  ],
+  "sessionId": "unique session identifier",
+  "patientData": {
+    "name": "Patient name",
+    "age": "Patient age",
+    "gender": "Patient gender",
+    "keluhan_awal": "Initial complaint"
+  }
+}
+```
 
-Aplikasi Anda sekarang berjalan. Frontend tersebut akan memanggil **URL Backend** (https://backend-url-anda.trycloudflare.com dari Langkah 2\) untuk mengambil data. Biarkan ke-4 terminal tetap terbuka.
+**Response:**
+```json
+{
+  "message": "Chat saved successfully"
+}
+```
 
-## **Deploy ke Vercel (Hosting Permanen)**
+## Deployment
 
-Proyek ini juga dikonfigurasi untuk deployment ke Vercel untuk hosting permanen.
+The application is configured for deployment on Vercel with the following setup:
 
-### **Prasyarat untuk Vercel**
-* Akun Vercel (https://vercel.com)
-* Vercel CLI (opsional, untuk deployment dari command line)
+### Vercel Configuration
 
-### **Langkah-langkah Deployment**
+The [`vercel.json`](vercel.json) file defines:
+- Build configurations for Python and static files
+- Route mappings for API endpoints
+- Static file serving
 
-1. **Fork repository ini ke GitHub Anda**
-2. **Masuk ke dashboard Vercel**
-3. **Klik "New Project"**
-4. **Pilih repository yang telah Anda fork**
-5. **Konfigurasi project:**
-   * Framework Preset: `Other`
-   * Root Directory: `/`
-   * Output Directory: ` `
-6. **Tambahkan Environment Variables:**
-   * `CHUTES_API_TOKEN` = `[your_chutes_api_token]`
-7. **Deploy!**
+### Deployment Steps
 
-### **Catatan Penting**
-* File `vercel.json` mengatur konfigurasi deployment
-* File `requirements.txt` berisi dependensi Python
-* Frontend dan backend akan di-deploy sebagai satu aplikasi
-* Pastikan Anda telah mengatur `CHUTES_API_TOKEN` di environment variables Vercel
+1. Push your code to a GitHub repository
+2. Connect your repository to Vercel
+3. Set environment variables in Vercel dashboard:
+   - `CHUTES_API_TOKEN`
+   - `SUPABASE_URL`
+   - `SUPABASE_KEY`
+4. Deploy the application
+
+## Project Structure
+
+```
+Medical Chatbot with AI/
+├── app.py                 # Main Flask application
+├── config.py              # Configuration settings
+├── prompts.py             # AI system prompts
+├── utils.py               # Utility functions
+├── index.html             # Main HTML interface
+├── style.css              # Styling
+├── script.js              # Frontend JavaScript
+├── requirements.txt       # Python dependencies
+├── vercel.json            # Vercel deployment config
+├── .gitignore             # Git ignore rules
+└── .env                   # Environment variables (not included in repo)
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a pull request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

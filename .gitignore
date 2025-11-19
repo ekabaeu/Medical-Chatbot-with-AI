@@ -13,3 +13,4 @@ __pycache__/
 /chat_logs/
 
 .kilocodemodes
+.DEPLOYMENT.md
