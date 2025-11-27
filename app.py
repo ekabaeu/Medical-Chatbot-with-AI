@@ -50,7 +50,6 @@ def handle_patient_data_request(message):
     """Handle patient data requests and return formatted response."""
     # Ekstrak ID pasien dari pesan
     patient_id = message.split(' ', 1)[1].strip()
-    print(f"ID pasien yang diekstrak: '{patient_id}'")
 
     # Cari data pasien di database
     patient_data = utils.get_patient_data_by_id(patient_id)
@@ -69,9 +68,7 @@ def handle_patient_data_request(message):
         response_text = f"Data pasien dengan ID {patient_id} tidak ditemukan."
     
     # Kembalikan respons langsung tanpa menghubungi AI
-    def generate_patient_data_response():
-        yield response_text
-    return Response(stream_with_context(generate_patient_data_response()), mimetype='text/plain')
+    return Response(response_text, mimetype='text/plain')
 
 
 def get_icd11_context(user_message):
@@ -84,65 +81,48 @@ def get_icd11_context(user_message):
     Returns:
         str: Formatted ICD-11 context or empty string if no context found
     """
-    # Extract potential medical terms (simple approach)
-    # In a real implementation, you might want to use NLP or a more sophisticated method
-    medical_terms = []
-    
-    # Simple keyword extraction (this is a basic approach, a more advanced NLP method would be better)
+    # Simple keyword extraction
     words = user_message.lower().split()
-    # Common medical terms (this is a simplified list)
     common_medical_terms = [
-        'fever', 'headache', 'cough', 'pain', 'diabetes', 'hypertension', 
-        'asthma', 'allergy', 'infection', 'inflammation', 'cancer', 
+        'fever', 'headache', 'cough', 'pain', 'diabetes', 'hypertension',
+        'asthma', 'allergy', 'infection', 'inflammation', 'cancer',
         'heart', 'lungs', 'kidney', 'liver', 'stomach', 'brain'
     ]
     
-    # Add any matching terms to our list
-    for word in words:
-        # Remove punctuation
-        clean_word = word.strip('.,!?;:')
-        if clean_word in common_medical_terms:
-            medical_terms.append(clean_word)
+    # Find matching medical terms
+    medical_terms = [word.strip('.,!?;:') for word in words if word.strip('.,!?;:') in common_medical_terms]
     
     # If we found medical terms, search for ICD-11 context
-    if medical_terms:
-        icd11_context = ""
-        for term in medical_terms[:3]:  # Limit to first 3 terms to avoid overwhelming the context
-            try:
-                # Search for the term in ICD-11
-                search_results = utils.search_icd11_entities(term)
-                
-                # If we got results, format them
-                if search_results and 'destinationEntities' in search_results:
-                    entities = search_results['destinationEntities'][:2]  # Limit to first 2 results
-                    for entity in entities:
-                        title = entity.get('title', 'Unknown')
-                        # Try to get entity details for more information
-                        if 'id' in entity:
-                            # Extract the entity ID from the URI
-                            entity_uri = entity['id']
-                            if entity_uri:
-                                # Extract the ID part from the URI
-                                entity_id = entity_uri.split('/')[-1]
-                                if entity_id:
-                                    try:
-                                        entity_details = utils.get_icd11_entity_details(entity_id)
-                                        definition = entity_details.get('definition', {}).get('@value', '')
-                                        if definition:
-                                            icd11_context += f"- {title}: {definition}\n"
-                                        else:
-                                            icd11_context += f"- {title}\n"
-                                    except Exception as e:
-                                        # If we can't get details, just use the title
-                                        icd11_context += f"- {title}\n"
-            except Exception as e:
-                print(f"Error fetching ICD-11 context for term '{term}': {e}")
-                continue
-                
-        if icd11_context:
-            return icd11_context.strip()
-    
-    return ""
+    icd11_context = ""
+    for term in medical_terms[:2]:  # Limit to first 2 terms
+        try:
+            # Search for the term in ICD-11
+            search_results = utils.search_icd11_entities(term)
+            
+            # If we got results, format them
+            if search_results and 'destinationEntities' in search_results:
+                entities = search_results['destinationEntities'][:1]  # Limit to first result
+                for entity in entities:
+                    title = entity.get('title', 'Unknown')
+                    if 'id' in entity:
+                        # Extract the entity ID from the URI
+                        entity_id = entity['id'].split('/')[-1]
+                        if entity_id:
+                            try:
+                                entity_details = utils.get_icd11_entity_details(entity_id)
+                                definition = entity_details.get('definition', {}).get('@value', '')
+                                if definition:
+                                    icd11_context += f"- {title}: {definition}\n"
+                                else:
+                                    icd11_context += f"- {title}\n"
+                            except Exception:
+                                # If we can't get details, just use the title
+                                icd11_context += f"- {title}\n"
+        except Exception as e:
+            print(f"Error fetching ICD-11 context for term '{term}': {e}")
+            continue
+            
+    return icd11_context.strip()
 
 
 # === Endpoint 1: Untuk Streaming Chat ===
@@ -176,9 +156,7 @@ def chat():
             'siapa kamu', 'matematika', 'fisika', 'berapa'
         ]
         if any(keyword in last_user_message_lower for keyword in non_medical_keywords):
-            def generate_refusal():
-                yield "Maaf, saya hanya dapat memproses pertanyaan terkait kesehatan."
-            return Response(stream_with_context(generate_refusal()), mimetype='text/plain')
+            return Response("Maaf, saya hanya dapat memproses pertanyaan terkait kesehatan.", mimetype='text/plain')
 
     user_message_count = sum(1 for msg in messages_for_llm if msg['role'] == 'user')
     
@@ -204,7 +182,6 @@ def chat():
             initial_complaint=patient_info['keluhan_awal'],
             session_id=session_id
         )
-        final_system_prompt = system_prompt_task_1
     # ==========================================================
     elif user_message_count == 2:
         final_system_prompt = system_prompt_task_2
@@ -220,7 +197,7 @@ def chat():
                 content = modified_prompt["content"]
                 # Replace the placeholder with actual ICD-11 context
                 content = content.replace(
-                    "**INFORMASI ICD-11:**\n[ICD-11 context akan disediakan di sini]", 
+                    "**INFORMASI ICD-11:**\n[ICD-11 context akan disediakan di sini]",
                     f"**INFORMASI ICD-11:**\n{icd11_context}"
                 )
                 modified_prompt["content"] = content
@@ -252,85 +229,66 @@ def chat():
 @app.route('/save-chat', methods=['POST'])
 def save_chat():
     """Menerima data dan menyimpan ke Supabase."""
+    data = request.json
+    chat_history = data.get('chatHistory', [])
+    session_id = data.get('sessionId')
+    patient_data = data.get('patientData', {})
+
+    if not chat_history or not session_id:
+        return jsonify({"error": "Data chat atau sessionId tidak ada"}), 400
+
+    # Simpan ke Supabase (primary storage)
+    success = utils.save_chat_history_supabase(session_id, chat_history, patient_data)
     
-    try:
-        data = request.json
-        chat_history = data.get('chatHistory', [])
-        session_id = data.get('sessionId')
-        patient_data = data.get('patientData', {})
-
-        if not chat_history or not session_id:
-            return jsonify({"error": "Data chat atau sessionId tidak ada"}), 400
-
-        # Simpan ke Supabase (primary storage)
-        success = utils.save_chat_history_supabase(session_id, chat_history, patient_data)
-        
-        if success:
-            return jsonify({"message": f"Chat disimpan ke Supabase dengan session ID: {session_id}"}), 200
-        else:
-            return jsonify({"error": "Gagal menyimpan chat ke Supabase"}), 500
-            
-    except Exception as e:
-        print(f"Error saving chat: {e}")
-        return jsonify({"error": "Gagal menyimpan chat di server"}), 500
+    if success:
+        return jsonify({"message": f"Chat disimpan ke Supabase dengan session ID: {session_id}"}), 200
+    else:
+        return jsonify({"error": "Gagal menyimpan chat ke Supabase"}), 500
 
 
 # === Endpoint 3: Untuk Memproses PDF Hasil Laboratorium ===
 @app.route('/process-pdf', methods=['POST'])
 def process_pdf():
     """Menerima file PDF hasil laboratorium dan memprosesnya."""
+    # Periksa apakah file PDF ada dalam request
+    if 'pdf' not in request.files:
+        return jsonify({"error": "Tidak ada file PDF dalam request"}), 400
     
-    try:
-        # Periksa apakah file PDF ada dalam request
-        if 'pdf' not in request.files:
-            return jsonify({"error": "Tidak ada file PDF dalam request"}), 400
-        
-        file = request.files['pdf']
-        
-        # Periksa apakah file memiliki nama
-        if file.filename == '':
-            return jsonify({"error": "Nama file kosong"}), 400
-        
-        # Periksa apakah file adalah PDF
-        if not file.filename.lower().endswith('.pdf'):
-            return jsonify({"error": "File harus berformat PDF"}), 400
-        
-        # Debug: Cek tipe file stream
-        print(f"File stream type: {type(file.stream)}")
-        print(f"File stream: {file.stream}")
-        
-        # Reset stream position to beginning
-        file.stream.seek(0)
-        
-        # Baca file PDF asli sebagai byte
-        file.stream.seek(0)
-        original_pdf = file.stream.read()
-        
-        # Reset stream position to beginning for processing
-        file.stream.seek(0)
-        
-        # Proses file PDF
-        result = pdf_processor.process_lab_pdf(file.stream)
-        
-        # Simpan hasil ke Supabase
-        session_id = request.form.get('session_id', str(uuid.uuid4()))
-        utils.save_lab_results_supabase(
-            session_id=session_id,
-            pdf_filename=file.filename,
-            original_pdf=original_pdf,
-            extracted_text=result['cleaned_text'],
-            lab_values=result['lab_values'],
-            summary=result['summary']
-        )
-        
-        # Kembalikan hasil dalam format JSON
-        return jsonify({
-            "summary": result['summary'],
-            "lab_values": result['lab_values']
-        }), 200
-        
-    except Exception as e:
-        print(f"Error processing PDF: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Gagal memproses file PDF: {str(e)}"}), 500
+    file = request.files['pdf']
+    
+    # Periksa apakah file memiliki nama
+    if file.filename == '':
+        return jsonify({"error": "Nama file kosong"}), 400
+    
+    # Periksa apakah file adalah PDF
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({"error": "File harus berformat PDF"}), 400
+    
+    # Reset stream position to beginning
+    file.stream.seek(0)
+    
+    # Baca file PDF asli sebagai byte
+    original_pdf = file.stream.read()
+    
+    # Reset stream position to beginning for processing
+    file.stream.seek(0)
+    
+    # Proses file PDF
+    result = pdf_processor.process_lab_pdf(file.stream)
+    
+    # Simpan hasil ke Supabase
+    session_id = request.form.get('session_id', str(uuid.uuid4()))
+    utils.save_lab_results_supabase(
+        session_id=session_id,
+        pdf_filename=file.filename,
+        original_pdf=original_pdf,
+        extracted_text=result['cleaned_text'],
+        lab_values=result['lab_values'],
+        summary=result['summary']
+    )
+    
+    # Kembalikan hasil dalam format JSON
+    return jsonify({
+        "summary": result['summary'],
+        "lab_values": result['lab_values']
+    }), 200

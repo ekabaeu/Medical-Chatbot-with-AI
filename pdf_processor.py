@@ -24,37 +24,34 @@ def extract_text_from_pdf(file_stream) -> str:
     Returns:
         str: Teks yang diekstrak dari PDF
     """
-    text = ""
+    # Reset stream position to beginning
+    file_stream.seek(0)
+    
+    # Coba ekstrak teks dengan pdfplumber terlebih dahulu
     try:
-        # Reset stream position to beginning
-        file_stream.seek(0)
-        # Gunakan pdfplumber untuk ekstraksi teks yang lebih akurat
         with pdfplumber.open(file_stream) as pdf:
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
+            text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+            if text.strip():
+                return text.strip()
     except Exception as e:
         print(f"Error extracting text with pdfplumber: {e}")
-        traceback.print_exc()
-        # Fallback ke PyPDF2 jika pdfplumber gagal
-        try:
-            file_stream.seek(0)
-            pdf_reader = PyPDF2.PdfReader(file_stream)
-            for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
-        except Exception as e2:
-            print(f"Error extracting text with PyPDF2: {e2}")
-            traceback.print_exc()
-            # Fallback ke OCR jika ekstraksi teks biasa gagal
-            try:
-                text = extract_text_with_ocr(file_stream)
-            except Exception as e3:
-                print(f"Error extracting text with OCR: {e3}")
-                traceback.print_exc()
-                raise Exception(f"Gagal mengekstrak teks dari PDF: {e3}")
     
-    return text.strip()
+    # Fallback ke PyPDF2 jika pdfplumber gagal
+    try:
+        file_stream.seek(0)
+        pdf_reader = PyPDF2.PdfReader(file_stream)
+        text = "\n".join(page.extract_text() or "" for page in pdf_reader.pages)
+        if text.strip():
+            return text.strip()
+    except Exception as e:
+        print(f"Error extracting text with PyPDF2: {e}")
+    
+    # Fallback ke OCR jika ekstraksi teks biasa gagal
+    try:
+        return extract_text_with_ocr(file_stream).strip()
+    except Exception as e:
+        print(f"Error extracting text with OCR: {e}")
+        raise Exception(f"Gagal mengekstrak teks dari PDF: {e}")
 
 
 def extract_text_with_ocr(file_stream) -> str:
@@ -67,16 +64,17 @@ def extract_text_with_ocr(file_stream) -> str:
     Returns:
         str: Teks yang diekstrak dari PDF menggunakan OCR
     """
+    import pdf2image
+    
+    # Reset stream position to beginning
+    file_stream.seek(0)
+    
+    # Simpan file sementara
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
+        tmp_file.write(file_stream.read())
+        tmp_file_path = tmp_file.name
+    
     try:
-        import pdf2image
-        # Reset stream position to beginning
-        file_stream.seek(0)
-        
-        # Simpan file sementara
-        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
-            tmp_file.write(file_stream.read())
-            tmp_file_path = tmp_file.name
-        
         # Konversi PDF ke gambar
         images = pdf2image.convert_from_path(tmp_file_path)
         
@@ -87,14 +85,10 @@ def extract_text_with_ocr(file_stream) -> str:
             page_text = pytesseract.image_to_string(image, lang='ind')
             text += page_text + "\n"
         
+        return text
+    finally:
         # Hapus file sementara
         os.unlink(tmp_file_path)
-        
-        return text.strip()
-    except Exception as e:
-        print(f"Error extracting text with OCR: {e}")
-        traceback.print_exc()
-        raise Exception(f"Gagal mengekstrak teks dari PDF menggunakan OCR: {e}")
 
 
 def clean_lab_results_text(text: str) -> str:
@@ -108,20 +102,13 @@ def clean_lab_results_text(text: str) -> str:
         str: Teks yang telah dibersihkan
     """
     # Hapus header dan footer umum
-    lines = text.split('\n')
-    cleaned_lines = []
+    skip_keywords = ['laboratorium', 'hasil pemeriksaan', 'tanggal cetak',
+                     'no. registrasi', 'alamat', 'telepon', 'page']
     
-    for line in lines:
-        # Lewati baris yang mengandung informasi header/footer umum
-        if any(keyword in line.lower() for keyword in [
-            'laboratorium', 'hasil pemeriksaan', 'tanggal cetak', 
-            'no. registrasi', 'alamat', 'telepon', 'page'
-        ]):
-            continue
-        # Lewati baris kosong
-        if line.strip() == '':
-            continue
-        cleaned_lines.append(line)
+    cleaned_lines = [
+        line for line in text.split('\n')
+        if line.strip() and not any(keyword in line.lower() for keyword in skip_keywords)
+    ]
     
     return '\n'.join(cleaned_lines)
 
@@ -140,17 +127,13 @@ def extract_lab_values(text: str) -> Dict[str, Any]:
     pattern = r'([A-Za-z\s]+):\s*([0-9.,]+)\s*([A-Za-z/\s]+)'
     matches = re.findall(pattern, text)
     
-    lab_values = {}
-    for match in matches:
-        test_name = match[0].strip()
-        value = match[1].strip()
-        unit = match[2].strip()
-        lab_values[test_name] = {
-            'value': value,
-            'unit': unit
+    return {
+        match[0].strip(): {
+            'value': match[1].strip(),
+            'unit': match[2].strip()
         }
-    
-    return lab_values
+        for match in matches
+    }
 
 
 def summarize_lab_results(lab_text: str) -> str:
@@ -202,13 +185,9 @@ def summarize_lab_results(lab_text: str) -> str:
         response.raise_for_status()
         result = response.json()
         
-        if result.get("choices") and len(result["choices"]) > 0:
-            return result["choices"][0].get("message", {}).get("content", "Gagal membuat rangkuman.")
-        else:
-            return "Gagal membuat rangkuman."
+        return result.get("choices", [{}])[0].get("message", {}).get("content", "Gagal membuat rangkuman.")
     except Exception as e:
         print(f"Error summarizing lab results: {e}")
-        traceback.print_exc()
         return f"Terjadi kesalahan saat merangkum hasil laboratorium: {str(e)}"
 
 
@@ -222,20 +201,6 @@ def process_lab_pdf(file_stream) -> Dict[str, Any]:
     Returns:
         dict: Dictionary berisi teks mentah, teks yang dibersihkan, nilai laboratorium, dan rangkuman
     """
-def process_lab_pdf(file_stream) -> Dict[str, Any]:
-    """
-    Memproses file PDF hasil laboratorium secara lengkap.
-    
-    Args:
-        file_stream: Stream file PDF
-        
-    Returns:
-        dict: Dictionary berisi teks mentah, teks yang dibersihkan, nilai laboratorium, dan rangkuman
-    """
-    # Debug: Cek tipe file stream
-    print(f"File stream type: {type(file_stream)}")
-    print(f"File stream: {file_stream}")
-    
     # Reset stream position to beginning
     file_stream.seek(0)
     

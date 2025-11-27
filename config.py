@@ -19,8 +19,8 @@ MODEL_NAME = "deepseek-ai/DeepSeek-R1"
 SAVE_DIR = "chat_logs"
 
 # Konfigurasi ICD-11 API
-ICD11_CLIENT_ID = os.getenv("ICD11_CLIENT_ID", "f0ed5cc3-6af0-47b6-96cf-e054f5cb3300_148f9135-392f-4ec4-82cd-c095a4620fd2")
-ICD11_CLIENT_SECRET = os.getenv("ICD11_CLIENT_SECRET", "AzjX0dPZH1CC2Fwlu8yW2EtNOtKYPx03LcxTcMP/Dwo=")
+ICD11_CLIENT_ID = os.getenv("ICD11_CLIENT_ID")
+ICD11_CLIENT_SECRET = os.getenv("ICD11_CLIENT_SECRET")
 
 # Konfigurasi Supabase
 def get_supabase_client() -> Client:
@@ -28,18 +28,13 @@ def get_supabase_client() -> Client:
     Create and return a Supabase client instance.
     This function safely handles client creation with environment variables.
     """
-    try:
-        # Get Supabase credentials from environment variables
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_KEY")
-        
-        # Check if required environment variables are set
-        if not supabase_url or not supabase_key:
-            raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables must be set")
-        
-        # Create Supabase client
-        supabase: Client = create_client(supabase_url, supabase_key)
-        return supabase
-    except Exception as e:
-        print(f"Error creating Supabase client: {e}")
-        raise
+    # Get Supabase credentials from environment variables
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+    
+    # Check if required environment variables are set
+    if not supabase_url or not supabase_key:
+        raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables must be set")
+    
+    # Create Supabase client
+    return create_client(supabase_url, supabase_key)

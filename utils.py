@@ -19,7 +19,8 @@ def extract_patient_info(message: str):
     info = {
         'nama': 'unknown',
         'umur': 0,
-        'gender': 'unknown'
+        'gender': 'unknown',
+        'keluhan_awal': message.strip()
     }
 
     # 1. Ekstrak Umur (lebih spesifik)
@@ -50,19 +51,6 @@ def extract_patient_info(message: str):
         # Asumsikan kata pertama adalah nama
         info['nama'] = words[0].capitalize()
 
-    # Extract the actual complaint by removing patient info from the message
-    complaint = message
-    # Remove age pattern
-    complaint = re.sub(r'(\d+)\s*(?:tahun|thn)', '', complaint, flags=re.IGNORECASE)
-    # Remove gender pattern
-    complaint = re.sub(r'\b(laki-laki|perempuan|pria|wanita)\b', '', complaint, flags=re.IGNORECASE)
-    # Remove name (first word after cleaning)
-    complaint = re.sub(r'^\s*\w+', '', complaint, 1)
-    # Clean up extra spaces and punctuation
-    complaint = re.sub(r'[,.\s]+', ' ', complaint).strip()
-    
-    # Add the extracted complaint to the info dictionary
-    info['keluhan_awal'] = complaint
     return info
 
 
@@ -92,13 +80,10 @@ def save_patient_data_supabase(patient_id: str, name: str, age: int, gender: str
             'session_id': session_id
         }
         response = supabase.table('patients').insert(patient_data).execute()
-        if response.data:
-            return True
-        else:
-            print(f"Gagal menyimpan data pasien ke Supabase: {response}")
-            return False
+        return bool(response.data)
     except Exception as e:
         print(f"Terjadi error saat menyimpan data ke Supabase: {e}")
+        return False
 
 def save_lab_results_supabase(session_id: str, pdf_filename: str, original_pdf: bytes, extracted_text: str, lab_values: dict, summary: str):
     """
@@ -128,15 +113,9 @@ def save_lab_results_supabase(session_id: str, pdf_filename: str, original_pdf: 
         }
         
         response = supabase.table('lab_results').insert(lab_data).execute()
-        if response.data:
-            return True
-        else:
-            print(f"Gagal menyimpan hasil laboratorium ke Supabase: {response}")
-            return False
+        return bool(response.data)
     except Exception as e:
         print(f"Terjadi error saat menyimpan hasil laboratorium ke Supabase: {e}")
-        import traceback
-        traceback.print_exc()
         return False
 
 def save_chat_history_supabase(session_id: str, chat_history: list, patient_data: dict = None):
@@ -167,15 +146,9 @@ def save_chat_history_supabase(session_id: str, chat_history: list, patient_data
         else:
             response = supabase.table('chat_logs').insert(chat_data).execute()
             
-        if response.data:
-            return True
-        else:
-            print(f"Gagal menyimpan riwayat chat ke Supabase: {response}")
-            return False
+        return bool(response.data)
     except Exception as e:
         print(f"Terjadi error saat menyimpan riwayat chat ke Supabase: {e}")
-        import traceback
-        traceback.print_exc()
         return False
 
 def get_patient_data_by_id(patient_id: str):
@@ -190,31 +163,14 @@ def get_patient_data_by_id(patient_id: str):
     """
     try:
         supabase = get_supabase_client()
-        print(f"Mencari data pasien dengan ID: {patient_id}")  # Logging tambahan
         
-        # Coba beberapa varian pencarian
-        variants = [
-            patient_id,  # ID asli
-            patient_id.strip(),  # Tanpa spasi
-            patient_id.lower(),  # Huruf kecil
-            patient_id.upper()   # Huruf besar
-        ]
+        # Query data pasien berdasarkan id_pasien
+        response = supabase.table('patients').select('*').eq('id_pasien', patient_id.strip()).execute()
         
-        for variant in variants:
-            # Query data pasien berdasarkan id_pasien
-            response = supabase.table('patients').select('*').eq('id_pasien', variant).execute()
-            
-            # Periksa apakah ada data yang ditemukan
-            if response.data and len(response.data) > 0:
-                # Kembalikan data pasien pertama yang ditemukan
-                return response.data[0]
-        
-        # Tidak ada data yang ditemukan
-        return None
+        # Kembalikan data pasien jika ditemukan
+        return response.data[0] if response.data else None
     except Exception as e:
         print(f"Terjadi error saat mengambil data pasien dari Supabase: {e}")
-        import traceback
-        traceback.print_exc()  # Menampilkan stack trace untuk debugging
         return None
 
 def search_icd11_entities(query: str, language: str = 'en') -> dict:
@@ -236,8 +192,7 @@ def search_icd11_entities(query: str, language: str = 'en') -> dict:
         )
         
         # Perform the search
-        results = client.search_entities(query, language)
-        return results
+        return client.search_entities(query, language)
     except Exception as e:
         print(f"Error searching ICD-11 entities: {e}")
         return {"error": str(e)}
@@ -261,8 +216,7 @@ def get_icd11_entity_details(entity_id: str, language: str = 'en') -> dict:
         )
         
         # Get entity details
-        details = client.get_entity_by_id(entity_id, language)
-        return details
+        return client.get_entity_by_id(entity_id, language)
     except Exception as e:
         print(f"Error getting ICD-11 entity details: {e}")
         return {"error": str(e)}

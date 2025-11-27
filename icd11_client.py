@@ -25,63 +25,59 @@ class ICD11Client:
         self.token_expires_at = None
     
     def _get_access_token(self) -> str:
-        """
-        Get an access token for the ICD-11 API using client credentials.
-        
-        Returns:
-            str: The access token
-        """
-        # Check if we already have a valid token
-        if self.access_token and self.token_expires_at and datetime.now() < self.token_expires_at:
+            """
+            Get an access token for the ICD-11 API using client credentials.
+            
+            Returns:
+                str: The access token
+            """
+            # Check if we already have a valid token
+            if self.access_token and self.token_expires_at and datetime.now() < self.token_expires_at:
+                return self.access_token
+            
+            # Request a new token
+            data = {
+                'client_id': self.client_id,
+                'client_secret': self.client_secret,
+                'scope': 'icdapi_access',
+                'grant_type': 'client_credentials'
+            }
+            
+            response = requests.post(self.token_url, data=data)
+            response.raise_for_status()
+            
+            token_data = response.json()
+            self.access_token = token_data['access_token']
+            # Set expiration time (with a small buffer)
+            expires_in = token_data.get('expires_in', 3600)
+            self.token_expires_at = datetime.now() + timedelta(seconds=expires_in - 60)
+            
             return self.access_token
-        
-        # Request a new token
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-        
-        data = {
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'scope': 'icdapi_access',
-            'grant_type': 'client_credentials'
-        }
-        
-        response = requests.post(self.token_url, headers=headers, data=data)
-        response.raise_for_status()
-        
-        token_data = response.json()
-        self.access_token = token_data['access_token']
-        # Set expiration time (with a small buffer)
-        expires_in = token_data.get('expires_in', 3600)
-        self.token_expires_at = datetime.now() + timedelta(seconds=expires_in - 60)
-        
-        return self.access_token
     
     def _make_request(self, url: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
-        """
-        Make an authenticated request to the ICD-11 API.
-        
-        Args:
-            url (str): The URL to request
-            params (dict): Query parameters
+            """
+            Make an authenticated request to the ICD-11 API.
             
-        Returns:
-            dict: The JSON response
-        """
-        token = self._get_access_token()
-        
-        headers = {
-            'Authorization': f'Bearer {token}',
-            'Accept': 'application/json',
-            'Accept-Language': 'en',
-            'API-Version': 'v2'
-        }
-        
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        
-        return response.json()
+            Args:
+                url (str): The URL to request
+                params (dict): Query parameters
+                
+            Returns:
+                dict: The JSON response
+            """
+            token = self._get_access_token()
+            
+            headers = {
+                'Authorization': f'Bearer {token}',
+                'Accept': 'application/json',
+                'Accept-Language': 'en',
+                'API-Version': 'v2'
+            }
+            
+            response = requests.get(url, headers=headers, params=params or {})
+            response.raise_for_status()
+            
+            return response.json()
     
     def search_entities(self, query: str, language: str = 'en') -> Dict[str, Any]:
         """
@@ -103,52 +99,34 @@ class ICD11Client:
         return self._make_request(url, params)
     
     def get_entity_by_id(self, entity_id: str, language: str = 'en') -> Dict[str, Any]:
-        """
-        Get detailed information about a specific ICD-11 entity by ID.
-        
-        Args:
-            entity_id (str): The ID of the entity
-            language (str): The language for the response (default: 'en')
+            """
+            Get detailed information about a specific ICD-11 entity by ID.
             
-        Returns:
-            dict: The entity details
-        """
-        url = f"{self.base_url}/entity/{entity_id}"
-        params = {
-            'language': language
-        }
-        
-        return self._make_request(url, params)
+            Args:
+                entity_id (str): The ID of the entity
+                language (str): The language for the response (default: 'en')
+                
+            Returns:
+                dict: The entity details
+            """
+            url = f"{self.base_url}/entity/{entity_id}"
+            params = {'language': language}
+            
+            return self._make_request(url, params)
     
     def get_linearization_entity(self, linearization: str, code: str, language: str = 'en') -> Dict[str, Any]:
-        """
-        Get information about a specific linearization entity by code.
-        
-        Args:
-            linearization (str): The linearization name (e.g., 'mms')
-            code (str): The entity code
-            language (str): The language for the response (default: 'en')
+            """
+            Get information about a specific linearization entity by code.
             
-        Returns:
-            dict: The entity details
-        """
-        url = f"{self.base_url}/{linearization}/{code}"
-        params = {
-            'language': language
-        }
-        
-        return self._make_request(url, params)
-
-# Example usage:
-# client = ICD11Client(
-#     client_id='f0ed5cc3-6af0-47b6-96cf-e054f5cb3300_148f9135-392f-4ec4-82cd-c095a4620fd2',
-#     client_secret='AzjX0dPZH1CC2Fwlu8yW2EtNOtKYPx03LcxTcMP/Dwo='
-# )
-# 
-# # Search for entities
-# search_results = client.search_entities('diabetes')
-# print(json.dumps(search_results, indent=2))
-# 
-# # Get specific entity details
-# entity_details = client.get_entity_by_id('123456789')
-# print(json.dumps(entity_details, indent=2))
+            Args:
+                linearization (str): The linearization name (e.g., 'mms')
+                code (str): The entity code
+                language (str): The language for the response (default: 'en')
+                
+            Returns:
+                dict: The entity details
+            """
+            url = f"{self.base_url}/{linearization}/{code}"
+            params = {'language': language}
+            
+            return self._make_request(url, params)
