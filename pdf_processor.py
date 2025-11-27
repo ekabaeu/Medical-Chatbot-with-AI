@@ -11,6 +11,7 @@ import pytesseract
 from PIL import Image
 import tempfile
 import os
+from utils import search_icd11_entities, get_icd11_entity_details
 
 
 def extract_text_from_pdf(file_stream) -> str:
@@ -136,28 +137,62 @@ def extract_lab_values(text: str) -> Dict[str, Any]:
     }
 
 
-def summarize_lab_results(lab_text: str) -> str:
+def summarize_lab_results(lab_text: str, lab_values: dict) -> str:
     """
-    Menggunakan AI untuk merangkum hasil laboratorium.
+    Menggunakan AI untuk merangkum hasil laboratorium dengan integrasi informasi ICD-11.
     
     Args:
         lab_text (str): Teks hasil laboratorium yang telah dibersihkan
+        lab_values (dict): Dictionary berisi nilai-nilai hasil laboratorium
         
     Returns:
-        str: Rangkuman hasil laboratorium
+        str: Rangkuman hasil laboratorium dengan konteks ICD-11
     """
-    # Buat prompt untuk AI
+    # Ekstrak istilah medis dari lab_values
+    medical_terms = list(lab_values.keys())[:3]  # Batasi 3 istilah pertama
+    
+    # Cari konteks ICD-11
+    icd11_context = ""
+    for term in medical_terms:
+        try:
+            search_results = search_icd11_entities(term)
+            if search_results and 'destinationEntities' in search_results:
+                entities = search_results['destinationEntities'][:1]
+                for entity in entities:
+                    title = entity.get('title', 'Unknown')
+                    if 'id' in entity:
+                        entity_id = entity['id'].split('/')[-1]
+                        if entity_id:
+                            try:
+                                entity_details = get_icd11_entity_details(entity_id)
+                                definition = entity_details.get('definition', {}).get('@value', '')
+                                if definition:
+                                    icd11_context += f"- {title}: {definition}\n"
+                                else:
+                                    icd11_context += f"- {title}\n"
+                            except Exception:
+                                # Jika tidak bisa mendapatkan detail, gunakan hanya judul
+                                icd11_context += f"- {title}\n"
+        except Exception as e:
+            print(f"Error fetching ICD-11 context for term '{term}': {e}")
+            continue
+    
+    # Buat prompt untuk AI dengan konteks ICD-11
     prompt = f"""
     Anda adalah seorang asisten medis AI yang membantu dalam menganalisis hasil laboratorium pasien.
     Berikut adalah hasil pemeriksaan laboratorium pasien:
     
     {lab_text}
     
+    Informasi ICD-11 terkait parameter laboratorium:
+    {icd11_context}
+    
     Tugas Anda:
     1. Rangkum hasil laboratorium tersebut dalam bentuk yang mudah dipahami
     2. Jelaskan apakah nilai-nilai tersebut normal atau tidak berdasarkan standar medis umum
     3. Jika ada nilai yang abnormal, berikan penjelasan singkat tentang kemungkinan implikasinya
-    4. Berikan rekomendasi umum untuk tindak lanjut (jika diperlukan)
+    4. Hubungkan hasil dengan informasi ICD-11 yang tersedia
+    5. Berikan rekomendasi umum untuk tindak lanjut (jika diperlukan)
     
     Berikan respons dalam bahasa Indonesia yang jelas dan informatif.
     """
@@ -166,7 +201,7 @@ def summarize_lab_results(lab_text: str) -> str:
     payload = {
         "model": config.MODEL_NAME,
         "messages": [
-            {"role": "system", "content": "Anda adalah asisten medis AI yang ahli dalam menganalisis hasil laboratorium."},
+            {"role": "system", "content": "Anda adalah asisten medis AI yang ahli dalam menganalisis hasil laboratorium dengan konteks ICD-11."},
             {"role": "user", "content": prompt}
         ],
         "stream": False,
@@ -214,7 +249,7 @@ def process_lab_pdf(file_stream) -> Dict[str, Any]:
     lab_values = extract_lab_values(cleaned_text)
     
     # Rangkum hasil dengan AI
-    summary = summarize_lab_results(cleaned_text)
+    summary = summarize_lab_results(cleaned_text, lab_values)
     
     return {
         'raw_text': raw_text,
