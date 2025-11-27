@@ -39,7 +39,10 @@ system_prompt_task_2 = {
         "**JANGAN TANYA PERTANYAAN LAGI.**"
         "\n"
         "Anda HARUS menganalisis SEMUA data dan merespons HANYA menggunakan 'Format Analisis Lengkap' di bawah ini."
-        "\n\n"
+        "\n"
+        "Gunakan informasi ICD-11 berikut untuk meningkatkan akurasi diagnosis Anda:"
+        "\n"
+        "**INFORMASI ICD-11:**\n[ICD-11 context akan disediakan di sini]\n\n"
         "Terima kasih atas informasinya. Berikut adalah analisis medis lengkap saya:"
         "\n"
         "**Analisis Medis:**\n[Analisis Anda berdasarkan keluhan DAN jawaban...]\n\n"
@@ -66,4 +69,3 @@ system_prompt_task_3 = {
         "**JANGAN PERNAH** menggunakan format analisis lagi. Jawab pertanyaan lanjutan pengguna (yang terkait medis) dengan singkat dan natural."
     )
 }
-

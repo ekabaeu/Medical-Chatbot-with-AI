@@ -2,14 +2,22 @@ const chatContainer = document.getElementById('chat-container');
 const chatBox = document.getElementById('chat-box');
 const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
+const uploadButton = document.getElementById('upload-button');
+const pdfUpload = document.getElementById('pdf-upload');
 
 // --- Variabel Global ---
-const BACKEND_URL = 'http://localhost:5000';
-let chatHistory = []; 
+// Use the same origin for backend when deployed to Vercel
+const BACKEND_URL = window.location.origin;
+let chatHistory = [];
 let sessionId = null; // Akan diisi saat pesan pertama
 let patientData = { name: 'unknown', age: 'unknown' }; // Menyimpan data pasien
 
 // --- Event Listeners ---
+uploadButton.addEventListener('click', () => {
+    pdfUpload.click();
+});
+
+pdfUpload.addEventListener('change', handlePDFUpload);
 sendButton.addEventListener('click', sendMessageFromInput); 
 userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessageFromInput();
@@ -18,7 +26,7 @@ userInput.addEventListener('keypress', (e) => {
 // --- FUNGSI: Simpan chat secara otomatis ---
 async function autoSaveChat() {
     if (chatHistory.length === 0 || !sessionId) {
-        return; 
+        return;
     }
     
     // Kirim data pasien yang sudah diekstrak
@@ -28,7 +36,7 @@ async function autoSaveChat() {
         patientData: patientData // Sertakan data pasien
     };
     
-    const SAVE_URL = `${BACKEND_URL}/save-chat`; 
+    const SAVE_URL = `${BACKEND_URL}/save-chat`;
 
     try {
         const response = await fetch(SAVE_URL, {
@@ -38,8 +46,6 @@ async function autoSaveChat() {
         });
         if (!response.ok) {
             console.error('Auto-save failed:', await response.json());
-        } else {
-            console.log('Chat auto-saved successfully.');
         }
     } catch (error) {
         console.error('Error auto-saving chat:', error);
@@ -113,7 +119,7 @@ async function getBotResponse() {
         if (patientHeader) {
             try {
                 const parsedData = JSON.parse(patientHeader);
-                // Hanya perbarui jika data baru valid
+                // Perbarui data pasien jika tersedia
                 if (parsedData.nama && parsedData.nama !== 'unknown') {
                     patientData.name = parsedData.nama;
                 }
@@ -125,7 +131,6 @@ async function getBotResponse() {
                 console.error('Failed to parse patient data from header:', e);
             }
         }
-        // -----------------------------------------
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -147,10 +152,10 @@ async function getBotResponse() {
         const errorMsg = 'Maaf, terjadi kesalahan: ' + error.message;
         botMessageElement.innerHTML = errorMsg;
         botMessageElement.style.color = 'red';
-        botMessageObj.message = errorMsg; // Perbarui objek riwayat juga
+        botMessageObj.message = errorMsg;
     }
     
-    // Simpan ke CSV (dengan data pasien terbaru)
+    // Simpan chat dengan data pasien terbaru
     await autoSaveChat();
 }
 
@@ -168,4 +173,60 @@ function displayMessage(message, sender) {
     chatBox.appendChild(messageElement);
     chatBox.scrollTop = chatBox.scrollHeight;
     return messageElement;
+}
+
+// Fungsi: Menangani upload PDF
+async function handlePDFUpload(event) {
+    const file = event.target.files[0];
+    if (!file || file.type !== 'application/pdf') {
+        alert('Silakan pilih file PDF yang valid.');
+        return;
+    }
+
+    // Tampilkan pesan loading
+    const loadingMessage = displayMessage('Memproses file PDF...', 'bot');
+    
+    try {
+        const formData = new FormData();
+        formData.append('pdf', file);
+        // Tambahkan session ID ke form data
+        formData.append('session_id', sessionId || Date.now().toString());
+        
+        const response = await fetch(`${BACKEND_URL}/process-pdf`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        
+        // Hapus pesan loading
+        chatBox.removeChild(loadingMessage);
+        
+        // Tampilkan hasil
+        displayMessage(`Hasil Laboratorium:\n${result.summary}`, 'bot');
+        
+        // Tambahkan ke chat history
+        chatHistory.push({
+            timestamp: new Date().toISOString(),
+            sender: 'Bot',
+            message: `Hasil Laboratorium:\n${result.summary}`
+        });
+        
+        // Simpan chat
+        await autoSaveChat();
+        
+    } catch (error) {
+        console.error('Error processing PDF:', error);
+        // Hapus pesan loading
+        chatBox.removeChild(loadingMessage);
+        displayMessage('Maaf, terjadi kesalahan saat memproses file PDF: ' + error.message, 'bot');
+    }
+    
+    // Reset input
+    pdfUpload.value = '';
 }
