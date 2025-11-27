@@ -306,4 +306,6 @@ def process_pdf():
         
     except Exception as e:
         print(f"Error processing PDF: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Gagal memproses file PDF: {str(e)}"}), 500

@@ -4,6 +4,7 @@ import io
 import re
 from typing import Optional, Dict, Any
 import config
+import traceback
 from utils import stream_chutes_ai_response
 import json
 import requests
@@ -21,6 +22,8 @@ def extract_text_from_pdf(file_stream) -> str:
     """
     text = ""
     try:
+        # Reset stream position to beginning
+        file_stream.seek(0)
         # Gunakan pdfplumber untuk ekstraksi teks yang lebih akurat
         with pdfplumber.open(file_stream) as pdf:
             for page in pdf.pages:
@@ -29,6 +32,7 @@ def extract_text_from_pdf(file_stream) -> str:
                     text += page_text + "\n"
     except Exception as e:
         print(f"Error extracting text with pdfplumber: {e}")
+        traceback.print_exc()
         # Fallback ke PyPDF2 jika pdfplumber gagal
         try:
             file_stream.seek(0)
@@ -37,6 +41,7 @@ def extract_text_from_pdf(file_stream) -> str:
                 text += page.extract_text() + "\n"
         except Exception as e2:
             print(f"Error extracting text with PyPDF2: {e2}")
+            traceback.print_exc()
             raise Exception(f"Gagal mengekstrak teks dari PDF: {e2}")
     
     return text.strip()
@@ -153,6 +158,7 @@ def summarize_lab_results(lab_text: str) -> str:
             return "Gagal membuat rangkuman."
     except Exception as e:
         print(f"Error summarizing lab results: {e}")
+        traceback.print_exc()
         return f"Terjadi kesalahan saat merangkum hasil laboratorium: {str(e)}"
 
 
