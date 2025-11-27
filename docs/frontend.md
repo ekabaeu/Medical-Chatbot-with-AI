@@ -26,6 +26,9 @@ The frontend is a single-page application built with vanilla HTML, CSS, and Java
 - Mobile-friendly layout with hamburger menu navigation
 - Error handling for API communication failures
 - Patient data extraction from response headers
+- PDF file upload for laboratory results processing
+- Drag and drop support for file uploads
+- File validation and error handling
 
 ## HTML Structure (index.html)
 
@@ -59,6 +62,12 @@ The main HTML file that defines the structure of the chat interface.
     <div id="input-area">
         <input type="text" id="user-input" placeholder="Ketik Nama, Umur, Gender, dan Keluhan Awal Anda...">
         <button id="send-button">➤</button>
+    </div>
+    
+    <div id="file-upload-area">
+        <input type="file" id="file-input" accept=".pdf" style="display: none;">
+        <button id="upload-button">Upload Lab Results</button>
+        <div id="file-info"></div>
     </div>
 </div>
 ```
@@ -110,6 +119,13 @@ CSS file that provides responsive styling for the chat interface.
 - Gap spacing for better visual separation
 - Shadow effects for depth
 
+#### File Upload Area
+- Dedicated section for PDF file uploads
+- Styled upload button with hover effects
+- File information display area
+- Drag and drop styling with visual feedback
+- Responsive design for mobile devices
+
 #### Responsive Design
 - Media queries for different screen sizes
 - Mobile-first approach with progressive enhancement
@@ -128,6 +144,7 @@ const BACKEND_URL = window.location.origin;
 let chatHistory = [];
 let sessionId = null;
 let patientData = { name: 'unknown', age: 'unknown' };
+let currentFile = null;
 ```
 
 ### Key Functions
@@ -137,6 +154,12 @@ let patientData = { name: 'unknown', age: 'unknown' };
 - `processUserMessage()`: Processes and displays user messages with timestamp
 - `getBotResponse()`: Communicates with backend API and handles streaming responses with real-time UI updates
 - `displayMessage()`: Renders messages in the chat interface with markdown support
+
+#### File Upload Functions
+- `handleFileUpload()`: Manages PDF file selection and validation
+- `uploadLabResults()`: Sends PDF file to backend for processing
+- `handleDragAndDrop()`: Implements drag and drop functionality for file uploads
+- `validateFile()`: Validates file type, size, and format
 
 #### Auto-save Functionality
 ```javascript
@@ -162,11 +185,14 @@ sendButton.addEventListener('click', sendMessageFromInput);
 userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessageFromInput();
 });
+uploadButton.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', handleFileUpload);
 ```
 - Click event for send button
 - Enter key support for message submission
 - Prevents empty message submissions
-```
+- File upload button and input handling
+- Drag and drop event listeners
 
 ### API Communication
 
@@ -181,6 +207,18 @@ const response = await fetch(`${BACKEND_URL}/chat`, {
 - Uses Fetch API for modern HTTP requests
 - JSON payload with chat history
 - Error handling with try/catch blocks
+
+#### PDF Processing Endpoint
+```javascript
+const response = await fetch(`${BACKEND_URL}/process-pdf`, {
+    method: 'POST',
+    body: formData
+});
+```
+- Uses Fetch API for file upload
+- FormData for multipart file submission
+- Session ID included for data association
+- Progress tracking for large files
 
 #### Streaming Response Handling
 - Uses `response.body.getReader()` for streaming
@@ -229,6 +267,14 @@ const patientHeader = response.headers.get('X-Patient-Data');
 - Responsive design with gap spacing
 - Minimum height constraints for touch targets
 
+### File Upload Area
+- **Upload Button**: Styled button for selecting PDF files
+- **File Input**: Hidden file input element for file selection
+- **File Information**: Display area for selected file name and size
+- **Drag and Drop**: Visual feedback for drag operations
+- **Validation Messages**: Error messages for invalid files
+- **Progress Indicator**: Visual feedback during file upload
+
 ## Data Flow
 
 ### Message Sending Flow
@@ -248,6 +294,19 @@ const patientHeader = response.headers.get('X-Patient-Data');
 5. Patient data extracted from response headers if available
 6. Final message saved to chat history
 7. UI updated with smooth animations
+
+### File Upload Flow
+1. User clicks upload button or drags file to drop zone
+2. File selection dialog opens
+3. User selects PDF file
+4. File validation performed (type, size)
+5. File information displayed to user
+6. User confirms upload
+7. File sent to `/process-pdf` endpoint as multipart form data
+8. Progress tracked during upload
+9. Backend processes PDF and returns results
+10. Results displayed in chat interface
+11. Results saved to chat history
 
 ### Auto-save Flow
 1. After bot response received and displayed
@@ -271,3 +330,13 @@ const patientHeader = response.headers.get('X-Patient-Data');
 4. Updated as more information becomes available from backend
 5. Used for personalizing future interactions
 6. Protected against XSS with JSON parsing and validation
+
+### Laboratory Results Processing
+1. User initiates file upload through UI
+2. PDF file selected and validated
+3. File sent to backend via Fetch API
+4. Backend processes PDF through multiple extraction methods
+5. Results returned as JSON with summary and values
+6. Results displayed in chat interface with proper formatting
+7. Results saved to chat history for persistence
+8. Session ID associates results with conversation

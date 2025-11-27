@@ -1,6 +1,6 @@
 # Medical Chatbot with AI
 
-A Flask-based medical chatbot application that uses AI to assist patients with initial medical consultations. The application features a three-stage diagnostic process that collects patient information, analyzes symptoms, and provides medical recommendations.
+A Flask-based medical chatbot application that uses AI to assist patients with initial medical consultations. The application features a three-stage diagnostic process that collects patient information, analyzes symptoms, and provides medical recommendations. It also includes PDF processing capabilities for laboratory results analysis.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ The Medical Chatbot with AI is designed to provide preliminary medical assistanc
 2. **Symptom Analysis**: Ask targeted diagnostic questions based on the initial complaint
 3. **Medical Recommendation**: Provide analysis, possible causes, and recommendations
 
-The application integrates with Chutes AI for natural language processing and Supabase for data storage.
+The application integrates with Chutes AI for natural language processing and Supabase for data storage. It also includes PDF processing capabilities for analyzing laboratory results with ICD-11 integration.
 
 ## Features
 
@@ -41,6 +41,9 @@ The application integrates with Chutes AI for natural language processing and Su
 - Session management with auto-generated unique identifiers
 - Error handling for API communication failures
 - ICD-11 medical classification integration for enhanced diagnostic accuracy
+- PDF processing for laboratory results analysis
+- OCR support for scanned laboratory results
+- AI-powered lab results summarization with medical context
 
 ## Technology Stack
 
@@ -51,6 +54,10 @@ The application integrates with Chutes AI for natural language processing and Su
 - **Supabase** - Database storage
 - **python-dotenv** - Environment variable management
 - **ICD-11 API** - WHO International Classification of Diseases integration
+- **PyPDF2** - PDF text extraction
+- **pdfplumber** - Advanced PDF text extraction
+- **pytesseract** - OCR for scanned documents
+- **pdf2image** - PDF to image conversion for OCR
 
 ### Frontend
 - **HTML5** - Semantic markup and structure
@@ -76,6 +83,7 @@ The application integrates with Chutes AI for natural language processing and Su
 - Node.js and npm (for development tools)
 - Supabase account
 - Chutes AI API token
+- Tesseract OCR engine (for PDF processing)
 
 ### Setup Instructions
 
@@ -96,7 +104,12 @@ The application integrates with Chutes AI for natural language processing and Su
    pip install -r requirements.txt
    ```
 
-4. **Set up environment variables:**
+4. **Install Tesseract OCR:**
+   - **Windows**: Download installer from https://github.com/UB-Mannheim/tesseract/wiki
+   - **macOS**: `brew install tesseract`
+   - **Linux**: `sudo apt-get install tesseract-ocr`
+
+5. **Set up environment variables:**
    Create a `.env` file in the root directory with the following variables:
    ```env
    CHUTES_API_TOKEN=your_chutes_api_token
@@ -104,7 +117,7 @@ The application integrates with Chutes AI for natural language processing and Su
    SUPABASE_KEY=your_supabase_key
    ```
 
-5. **Run the application:**
+6. **Run the application:**
    ```bash
    python app.py
    ```
@@ -138,6 +151,7 @@ The application requires the following environment variables to be set in a `.en
    - Stage 2: Receive medical analysis and recommendations
    - Stage 3: Ask follow-up questions (medical only)
 4. View your chat history and patient data
+5. Upload laboratory result PDFs for AI-powered analysis
 
 ### Patient Data Format
 
@@ -146,6 +160,18 @@ When starting a conversation, provide information in this format:
 [Your Name], [Age], [Gender], [Initial Complaint]
 Michael, 45 tahun, laki-laki, sakit kepala
 ```
+
+### Laboratory Results Processing
+
+1. After completing the consultation process, you can upload PDF laboratory results
+2. The system will automatically extract text from the PDF using multiple methods:
+   - pdfplumber for high-quality text extraction
+   - PyPDF2 as fallback
+   - OCR for scanned documents
+3. The extracted text is cleaned to remove irrelevant information
+4. Key laboratory values are extracted using pattern matching
+5. ICD-11 context is retrieved for the identified medical terms
+6. An AI-powered summary is generated with medical context and recommendations
 
 ## API Endpoints
 
@@ -202,6 +228,28 @@ Save chat history to the database.
 }
 ```
 
+### POST `/process-pdf`
+
+Process laboratory result PDF files and generate AI-powered analysis.
+
+**Request:**
+- Multipart form data with PDF file
+- `pdf`: The PDF file to process
+- `session_id`: (optional) Session identifier
+
+**Response:**
+```json
+{
+  "summary": "AI-generated summary of lab results with medical context",
+  "lab_values": {
+    "Glukosa": {
+      "value": "90",
+      "unit": "mg/dL"
+    }
+  }
+}
+```
+
 ## Deployment
 
 The application is configured for deployment on Vercel with the following setup:
@@ -230,6 +278,7 @@ The Medical Chatbot integrates with the WHO ICD-11 (International Classification
 - **Enhanced Medical Context**: During the analysis stage (Stage 2), the chatbot extracts relevant medical terms from the patient's initial complaint and queries the ICD-11 database for related information.
 - **Improved Diagnostic Accuracy**: The ICD-11 context is provided to the AI model, helping it make more informed diagnostic recommendations.
 - **Standardized Medical Terminology**: All medical terms are referenced against the WHO's official ICD-11 classification system.
+- **Lab Results Context**: When processing laboratory results, ICD-11 context is retrieved for identified medical terms to enhance the analysis.
 
 ### How It Works
 
@@ -238,10 +287,33 @@ The Medical Chatbot integrates with the WHO ICD-11 (International Classification
 3. Relevant ICD-11 entries are retrieved and formatted as context.
 4. This context is injected into the system prompt for the analysis stage.
 5. The AI model uses this additional medical information to provide more accurate analysis and recommendations.
+6. For lab results, the same process is applied to identified medical parameters.
 
 ### Configuration
 
 The ICD-11 integration uses OAuth 2.0 client credentials for authentication with the WHO API. The default credentials are provided in the application, but you can override them by setting the `ICD11_CLIENT_ID` and `ICD11_CLIENT_SECRET` environment variables.
+
+## PDF Processing
+
+The application includes advanced PDF processing capabilities for laboratory results:
+
+### Text Extraction Methods
+
+1. **pdfplumber**: Primary method for high-quality text extraction from digital PDFs
+2. **PyPDF2**: Fallback method for compatibility with different PDF formats
+3. **OCR (pytesseract)**: Final fallback for scanned documents or images in PDFs
+
+### Text Processing
+
+1. **Cleaning**: Removal of irrelevant headers, footers, and boilerplate text
+2. **Value Extraction**: Pattern matching to identify laboratory values and units
+3. **Context Analysis**: ICD-11 lookup for medical terms in the extracted text
+
+### AI Analysis
+
+1. **Summarization**: Generation of human-readable summaries of laboratory results
+2. **Medical Context**: Integration of ICD-11 information for enhanced understanding
+3. **Recommendations**: Suggestions for follow-up actions based on abnormal values
 
 ## Project Structure
 
@@ -252,6 +324,7 @@ Medical Chatbot with AI/
 ├── prompts.py             # AI system prompts
 ├── utils.py               # Utility functions
 ├── icd11_client.py        # ICD-11 API client
+├── pdf_processor.py       # PDF processing functions
 ├── index.html             # Main HTML interface with chat container
 ├── style.css              # Modern styling with responsive design
 ├── script.js              # Frontend JavaScript with streaming API communication
@@ -259,4 +332,3 @@ Medical Chatbot with AI/
 ├── vercel.json            # Vercel deployment config
 ├── .gitignore             # Git ignore rules
 └── .env                   # Environment variables (not included in repo)
-```

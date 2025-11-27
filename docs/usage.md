@@ -9,6 +9,7 @@ This document provides detailed instructions on how to use the Medical Chatbot a
 - [Three-Stage Diagnostic System](#three-stage-diagnostic-system)
 - [Patient Information Format](#patient-information-format)
 - [Chat Interface Navigation](#chat-interface-navigation)
+- [Laboratory Results Processing](#laboratory-results-processing)
 - [Special Features](#special-features)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
@@ -184,6 +185,74 @@ Michael, 45 tahun, laki-laki, sakit kepala
 - Works in the background without interrupting chat
 - Error handling for failed saves
 
+## Laboratory Results Processing
+
+### Uploading Laboratory Results
+
+After completing the consultation process, you can upload PDF laboratory results for AI-powered analysis:
+
+1. Look for the file upload option in the interface
+2. Select a PDF file containing your laboratory results
+3. The system will automatically process the file and provide analysis
+
+### Supported File Types
+
+- **PDF files** (.pdf) containing laboratory results
+- Both digital PDFs and scanned documents are supported
+- Maximum file size depends on your deployment configuration
+
+### Processing Steps
+
+1. **Text Extraction**: The system extracts text from your PDF using multiple methods:
+   - pdfplumber for high-quality digital PDFs
+   - PyPDF2 as a fallback method
+   - OCR (Optical Character Recognition) for scanned documents
+
+2. **Text Cleaning**: Irrelevant information is removed:
+   - Headers and footers
+   - Contact information
+   - Page numbers
+   - Boilerplate text
+
+3. **Value Extraction**: Laboratory values are identified and structured:
+   - Parameter names
+   - Numerical values
+   - Units of measurement
+
+4. **Medical Context**: ICD-11 context is retrieved for identified medical terms
+
+5. **AI Analysis**: An AI-powered summary is generated:
+   - Human-readable interpretation of results
+   - Comparison with normal ranges
+   - Medical context from ICD-11
+   - Recommendations for follow-up actions
+
+### What You'll Receive
+
+After processing, you'll get:
+
+1. **Summary**: A comprehensive explanation of your laboratory results in plain language
+2. **Key Values**: A structured list of important laboratory parameters with their values and units
+3. **Medical Context**: Relevant medical information from the ICD-11 classification
+4. **Recommendations**: Suggestions for next steps based on the results
+
+### Best Practices for PDF Uploads
+
+1. **File Quality**: 
+   - Use clear, high-resolution PDFs when possible
+   - For scanned documents, ensure text is legible
+   - Avoid password-protected PDFs
+
+2. **Content**: 
+   - Upload complete laboratory result reports
+   - Ensure the PDF contains structured data with parameter names and values
+   - Remove any personal identification beyond what's necessary
+
+3. **Format**: 
+   - Save as PDF rather than image formats
+   - Ensure text is selectable (not just images)
+   - Use standard medical terminology in the document
+
 ## Special Features
 
 ### Non-medical Query Handling
@@ -251,6 +320,11 @@ Bot responses support markdown formatting for better readability:
 - Subsequent responses should be faster
 - Check internet connection speed
 
+#### PDF Processing Issues
+- **"Tidak ada file PDF dalam request"**: No file was selected for upload
+- **"File harus berformat PDF"**: Non-PDF file was uploaded
+- **"Gagal mengekstrak teks dari PDF"**: PDF could not be processed (may be corrupted or password-protected)
+
 ### Browser Compatibility
 
 **Supported Browsers:**
@@ -309,6 +383,11 @@ Bot responses support markdown formatting for better readability:
    - Session information is associated with your chat
    - No personal identification beyond what you provide
 
+3. **PDF Security**:
+   - Remove unnecessary personal information from PDFs before upload
+   - Be aware that uploaded PDFs are stored in the database
+   - Password-protected PDFs cannot be processed
+
 ### Medical Advice Limitations
 
 **Important Disclaimers:**
@@ -316,6 +395,7 @@ Bot responses support markdown formatting for better readability:
 - Not a substitute for professional medical consultation
 - Emergency situations require immediate professional help
 - Always consult healthcare providers for serious conditions
+- Laboratory result analysis is for informational purposes only
 
 ### When to Seek Immediate Help
 
@@ -333,6 +413,7 @@ After using the chatbot:
 3. Keep a record of your conversation
 4. Consult a healthcare provider for persistent issues
 5. Bring chat history to medical appointments if needed
+6. Bring original laboratory results to healthcare providers for verification
 
 ## Additional Resources
 

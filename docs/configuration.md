@@ -9,6 +9,7 @@ This document provides detailed information about the configuration files used i
 - [prompts.py](#promptspy)
 - [vercel.json](#verceljson)
 - [Environment Variables](#environment-variables)
+- [PDF Processing Configuration](#pdf-processing-configuration)
 
 ## Configuration Files Overview
 
@@ -122,6 +123,10 @@ The Vercel configuration file that defines how the application is built and depl
       "dest": "app.py"
     },
     {
+      "src": "/process-pdf",
+      "dest": "app.py"
+    },
+    {
       "src": "/(index.html|style.css|script.js)",
       "dest": "/$1"
     },
@@ -150,3 +155,51 @@ The application requires several environment variables to be set for proper oper
 CHUTES_API_TOKEN=your_chutes_api_token_here
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your_supabase_api_key_here
+```
+
+## PDF Processing Configuration
+
+The PDF processing functionality requires specific configuration for optimal performance.
+
+### Required Dependencies
+
+The application uses several Python libraries for PDF processing:
+
+1. **PyPDF2**: For basic PDF text extraction
+2. **pdfplumber**: For advanced PDF text extraction with better formatting
+3. **pytesseract**: For OCR processing of scanned documents
+4. **pdf2image**: For converting PDF pages to images for OCR
+
+### External Dependencies
+
+#### Tesseract OCR Engine
+
+For OCR functionality, the Tesseract OCR engine must be installed on the system:
+
+- **Windows**: Download installer from https://github.com/UB-Mannheim/tesseract/wiki
+- **macOS**: `brew install tesseract`
+- **Linux**: `sudo apt-get install tesseract-ocr`
+
+#### Language Support
+
+The OCR functionality is configured to use Indonesian language support:
+```python
+page_text = pytesseract.image_to_string(image, lang='ind')
+```
+
+For other languages, additional language packs may need to be installed.
+
+### Memory and Performance Considerations
+
+PDF processing can be memory-intensive, especially for large files or documents with many pages:
+
+1. **Temporary Files**: The OCR process creates temporary files that are automatically cleaned up
+2. **Image Conversion**: PDF to image conversion requires significant memory for high-resolution documents
+3. **API Limits**: Large PDF processing may exceed API timeout limits (currently set to 180 seconds)
+
+### Security Considerations
+
+1. **File Validation**: Only PDF files are accepted for processing
+2. **Size Limits**: Vercel has file size limits for uploads that should be considered
+3. **Content Sanitization**: Extracted text is processed but not directly executed
+4. **Temporary File Cleanup**: All temporary files are removed after processing
