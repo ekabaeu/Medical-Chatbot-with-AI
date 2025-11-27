@@ -7,11 +7,16 @@ import config
 import traceback
 import json
 import requests
+import pytesseract
+from PIL import Image
+import tempfile
+import os
 
 
 def extract_text_from_pdf(file_stream) -> str:
     """
     Mengekstrak teks dari file PDF menggunakan pdfplumber untuk akurasi yang lebih baik.
+    Jika ekstraksi teks gagal, gunakan OCR sebagai fallback.
     
     Args:
         file_stream: Stream file PDF
@@ -41,9 +46,55 @@ def extract_text_from_pdf(file_stream) -> str:
         except Exception as e2:
             print(f"Error extracting text with PyPDF2: {e2}")
             traceback.print_exc()
-            raise Exception(f"Gagal mengekstrak teks dari PDF: {e2}")
+            # Fallback ke OCR jika ekstraksi teks biasa gagal
+            try:
+                text = extract_text_with_ocr(file_stream)
+            except Exception as e3:
+                print(f"Error extracting text with OCR: {e3}")
+                traceback.print_exc()
+                raise Exception(f"Gagal mengekstrak teks dari PDF: {e3}")
     
     return text.strip()
+
+
+def extract_text_with_ocr(file_stream) -> str:
+    """
+    Mengekstrak teks dari file PDF menggunakan OCR (Optical Character Recognition).
+    
+    Args:
+        file_stream: Stream file PDF
+        
+    Returns:
+        str: Teks yang diekstrak dari PDF menggunakan OCR
+    """
+    try:
+        import pdf2image
+        # Reset stream position to beginning
+        file_stream.seek(0)
+        
+        # Simpan file sementara
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
+            tmp_file.write(file_stream.read())
+            tmp_file_path = tmp_file.name
+        
+        # Konversi PDF ke gambar
+        images = pdf2image.convert_from_path(tmp_file_path)
+        
+        # Ekstrak teks dari setiap halaman menggunakan OCR
+        text = ""
+        for image in images:
+            # Gunakan pytesseract untuk OCR
+            page_text = pytesseract.image_to_string(image, lang='ind')
+            text += page_text + "\n"
+        
+        # Hapus file sementara
+        os.unlink(tmp_file_path)
+        
+        return text.strip()
+    except Exception as e:
+        print(f"Error extracting text with OCR: {e}")
+        traceback.print_exc()
+        raise Exception(f"Gagal mengekstrak teks dari PDF menggunakan OCR: {e}")
 
 
 def clean_lab_results_text(text: str) -> str:
