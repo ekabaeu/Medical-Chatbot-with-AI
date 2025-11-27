@@ -28,6 +28,11 @@
       "dest": "app.py"
     },
     {
+      "src": "/process-pdf",
+      "dest": "app.py",
+      "methods": ["POST"]
+    },
+    {
       "src": "/(index.html|style.css|script.js)",
       "dest": "/$1"
     },
