@@ -72,6 +72,78 @@ def handle_patient_data_request(message):
         yield response_text
     return Response(stream_with_context(generate_patient_data_response()), mimetype='text/plain')
 
+
+def get_icd11_context(user_message):
+    """
+    Extract medical terms from user message and fetch ICD-11 context.
+    
+    Args:
+        user_message (str): The user's message
+        
+    Returns:
+        str: Formatted ICD-11 context or empty string if no context found
+    """
+    # Extract potential medical terms (simple approach)
+    # In a real implementation, you might want to use NLP or a more sophisticated method
+    medical_terms = []
+    
+    # Simple keyword extraction (this is a basic approach, a more advanced NLP method would be better)
+    words = user_message.lower().split()
+    # Common medical terms (this is a simplified list)
+    common_medical_terms = [
+        'fever', 'headache', 'cough', 'pain', 'diabetes', 'hypertension', 
+        'asthma', 'allergy', 'infection', 'inflammation', 'cancer', 
+        'heart', 'lungs', 'kidney', 'liver', 'stomach', 'brain'
+    ]
+    
+    # Add any matching terms to our list
+    for word in words:
+        # Remove punctuation
+        clean_word = word.strip('.,!?;:')
+        if clean_word in common_medical_terms:
+            medical_terms.append(clean_word)
+    
+    # If we found medical terms, search for ICD-11 context
+    if medical_terms:
+        icd11_context = ""
+        for term in medical_terms[:3]:  # Limit to first 3 terms to avoid overwhelming the context
+            try:
+                # Search for the term in ICD-11
+                search_results = utils.search_icd11_entities(term)
+                
+                # If we got results, format them
+                if search_results and 'destinationEntities' in search_results:
+                    entities = search_results['destinationEntities'][:2]  # Limit to first 2 results
+                    for entity in entities:
+                        title = entity.get('title', 'Unknown')
+                        # Try to get entity details for more information
+                        if 'id' in entity:
+                            # Extract the entity ID from the URI
+                            entity_uri = entity['id']
+                            if entity_uri:
+                                # Extract the ID part from the URI
+                                entity_id = entity_uri.split('/')[-1]
+                                if entity_id:
+                                    try:
+                                        entity_details = utils.get_icd11_entity_details(entity_id)
+                                        definition = entity_details.get('definition', {}).get('@value', '')
+                                        if definition:
+                                            icd11_context += f"- {title}: {definition}\n"
+                                        else:
+                                            icd11_context += f"- {title}\n"
+                                    except Exception as e:
+                                        # If we can't get details, just use the title
+                                        icd11_context += f"- {title}\n"
+            except Exception as e:
+                print(f"Error fetching ICD-11 context for term '{term}': {e}")
+                continue
+                
+        if icd11_context:
+            return icd11_context.strip()
+    
+    return ""
+
+
 # === Endpoint 1: Untuk Streaming Chat ===
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -135,6 +207,23 @@ def chat():
     # ==========================================================
     elif user_message_count == 2:
         final_system_prompt = system_prompt_task_2
+        
+        # For task 2 (analysis), add ICD-11 context to improve the analysis
+        # Get ICD-11 context based on the user's initial complaint
+        if len(messages_for_llm) > 1:
+            icd11_context = get_icd11_context(messages_for_llm[1]['content'])
+            
+            if icd11_context:
+                # Modify the system prompt to include ICD-11 context
+                modified_prompt = final_system_prompt.copy()
+                content = modified_prompt["content"]
+                # Replace the placeholder with actual ICD-11 context
+                content = content.replace(
+                    "**INFORMASI ICD-11:**\n[ICD-11 context akan disediakan di sini]", 
+                    f"**INFORMASI ICD-11:**\n{icd11_context}"
+                )
+                modified_prompt["content"] = content
+                final_system_prompt = modified_prompt
     else:
         final_system_prompt = system_prompt_task_3
 

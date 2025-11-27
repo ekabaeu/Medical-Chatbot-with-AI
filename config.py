@@ -18,6 +18,10 @@ if not CHUTES_API_TOKEN:
 MODEL_NAME = "deepseek-ai/DeepSeek-R1"
 SAVE_DIR = "chat_logs"
 
+# Konfigurasi ICD-11 API
+ICD11_CLIENT_ID = os.getenv("ICD11_CLIENT_ID", "f0ed5cc3-6af0-47b6-96cf-e054f5cb3300_148f9135-392f-4ec4-82cd-c095a4620fd2")
+ICD11_CLIENT_SECRET = os.getenv("ICD11_CLIENT_SECRET", "AzjX0dPZH1CC2Fwlu8yW2EtNOtKYPx03LcxTcMP/Dwo=")
+
 # Konfigurasi Supabase
 def get_supabase_client() -> Client:
     """

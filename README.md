@@ -40,6 +40,7 @@ The application integrates with Chutes AI for natural language processing and Su
 - Gradient-based modern design with smooth animations
 - Session management with auto-generated unique identifiers
 - Error handling for API communication failures
+- ICD-11 medical classification integration for enhanced diagnostic accuracy
 
 ## Technology Stack
 
@@ -49,6 +50,7 @@ The application integrates with Chutes AI for natural language processing and Su
 - **Chutes AI API** - AI model integration
 - **Supabase** - Database storage
 - **python-dotenv** - Environment variable management
+- **ICD-11 API** - WHO International Classification of Diseases integration
 
 ### Frontend
 - **HTML5** - Semantic markup and structure
@@ -118,6 +120,8 @@ The application requires the following environment variables to be set in a `.en
 | `CHUTES_API_TOKEN` | API token for Chutes AI service | Yes |
 | `SUPABASE_URL` | URL of your Supabase project | Yes |
 | `SUPABASE_KEY` | API key for your Supabase project | Yes |
+| `ICD11_CLIENT_ID` | Client ID for WHO ICD-11 API (optional, defaults to provided credentials) | No |
+| `ICD11_CLIENT_SECRET` | Client secret for WHO ICD-11 API (optional, defaults to provided credentials) | No |
 
 ### Configuration Files
 
@@ -219,6 +223,26 @@ The [`vercel.json`](vercel.json) file defines:
    - `SUPABASE_KEY`
 4. Deploy the application
 
+## ICD-11 Integration
+
+The Medical Chatbot integrates with the WHO ICD-11 (International Classification of Diseases 11th Revision) API to enhance diagnostic accuracy. This integration provides:
+
+- **Enhanced Medical Context**: During the analysis stage (Stage 2), the chatbot extracts relevant medical terms from the patient's initial complaint and queries the ICD-11 database for related information.
+- **Improved Diagnostic Accuracy**: The ICD-11 context is provided to the AI model, helping it make more informed diagnostic recommendations.
+- **Standardized Medical Terminology**: All medical terms are referenced against the WHO's official ICD-11 classification system.
+
+### How It Works
+
+1. When a patient provides their initial complaint, the system extracts potential medical terms.
+2. These terms are used to search the ICD-11 database through the WHO API.
+3. Relevant ICD-11 entries are retrieved and formatted as context.
+4. This context is injected into the system prompt for the analysis stage.
+5. The AI model uses this additional medical information to provide more accurate analysis and recommendations.
+
+### Configuration
+
+The ICD-11 integration uses OAuth 2.0 client credentials for authentication with the WHO API. The default credentials are provided in the application, but you can override them by setting the `ICD11_CLIENT_ID` and `ICD11_CLIENT_SECRET` environment variables.
+
 ## Project Structure
 
 ```
@@ -227,6 +251,7 @@ Medical Chatbot with AI/
 ├── config.py              # Configuration settings
 ├── prompts.py             # AI system prompts
 ├── utils.py               # Utility functions
+├── icd11_client.py        # ICD-11 API client
 ├── index.html             # Main HTML interface with chat container
 ├── style.css              # Modern styling with responsive design
 ├── script.js              # Frontend JavaScript with streaming API communication

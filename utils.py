@@ -3,7 +3,8 @@ import os
 import re
 import random
 import string
-from config import get_supabase_client
+from config import get_supabase_client, ICD11_CLIENT_ID, ICD11_CLIENT_SECRET
+from icd11_client import ICD11Client
 
 def generate_patient_id(length=5):
     """Menghasilkan ID pasien acak alfanumerik dengan panjang tertentu."""
@@ -177,3 +178,53 @@ def get_patient_data_by_id(patient_id: str):
         import traceback
         traceback.print_exc()  # Menampilkan stack trace untuk debugging
         return None
+
+def search_icd11_entities(query: str, language: str = 'en') -> dict:
+    """
+    Search for ICD-11 entities using the provided query.
+    
+    Args:
+        query (str): The search query
+        language (str): The language for the search (default: 'en')
+        
+    Returns:
+        dict: The search results from ICD-11 API
+    """
+    try:
+        # Create ICD-11 client with credentials from config
+        client = ICD11Client(
+            client_id=ICD11_CLIENT_ID,
+            client_secret=ICD11_CLIENT_SECRET
+        )
+        
+        # Perform the search
+        results = client.search_entities(query, language)
+        return results
+    except Exception as e:
+        print(f"Error searching ICD-11 entities: {e}")
+        return {"error": str(e)}
+
+def get_icd11_entity_details(entity_id: str, language: str = 'en') -> dict:
+    """
+    Get detailed information about a specific ICD-11 entity by ID.
+    
+    Args:
+        entity_id (str): The ID of the entity
+        language (str): The language for the response (default: 'en')
+        
+    Returns:
+        dict: The entity details from ICD-11 API
+    """
+    try:
+        # Create ICD-11 client with credentials from config
+        client = ICD11Client(
+            client_id=ICD11_CLIENT_ID,
+            client_secret=ICD11_CLIENT_SECRET
+        )
+        
+        # Get entity details
+        details = client.get_entity_by_id(entity_id, language)
+        return details
+    except Exception as e:
+        print(f"Error getting ICD-11 entity details: {e}")
+        return {"error": str(e)}
