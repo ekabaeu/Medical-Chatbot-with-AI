@@ -17,7 +17,7 @@ app = Flask(__name__)
 CORS(app)
 
 def stream_chutes_ai_response(payload):
-    """Menangani koneksi dan streaming dari Chutes AI API."""
+    """Handle connection and streaming from Chutes AI API."""
     headers = {
         "Authorization": f"Bearer {config.CHUTES_API_TOKEN}",
         "Content-Type": "application/json"
@@ -40,22 +40,17 @@ def stream_chutes_ai_response(payload):
                                 if content:
                                     yield content
                         except json.JSONDecodeError:
-                            print(f"Error decoding JSON chunk: {data_str}")
+                            pass
     except requests.exceptions.RequestException as e:
-        print(f"Error connecting to Chutes AI: {e}")
         yield f"Error: Gagal terhubung ke layanan AI. {e}"
 
 
 def handle_patient_data_request(message):
     """Handle patient data requests and return formatted response."""
-    # Ekstrak ID pasien dari pesan
     patient_id = message.split(' ', 1)[1].strip()
-
-    # Cari data pasien di database
     patient_data = utils.get_patient_data_by_id(patient_id)
     
     if patient_data:
-        # Format data pasien untuk ditampilkan
         response_text = (
             "Data Pasien:\n"
             f"- ID Pasien: {patient_data['id_pasien']}\n"
@@ -67,21 +62,11 @@ def handle_patient_data_request(message):
     else:
         response_text = f"Data pasien dengan ID {patient_id} tidak ditemukan."
     
-    # Kembalikan respons langsung tanpa menghubungi AI
     return Response(response_text, mimetype='text/plain')
 
 
 def get_icd11_context(user_message):
-    """
-    Extract medical terms from user message and fetch ICD-11 context.
-    
-    Args:
-        user_message (str): The user's message
-        
-    Returns:
-        str: Formatted ICD-11 context or empty string if no context found
-    """
-    # Simple keyword extraction
+    """Extract medical terms from user message and fetch ICD-11 context."""
     words = user_message.lower().split()
     common_medical_terms = [
         'fever', 'headache', 'cough', 'pain', 'diabetes', 'hypertension',
@@ -92,34 +77,26 @@ def get_icd11_context(user_message):
     # Find matching medical terms
     medical_terms = [word.strip('.,!?;:') for word in words if word.strip('.,!?;:') in common_medical_terms]
     
-    # If we found medical terms, search for ICD-11 context
+    # Get ICD-11 context for medical terms
     icd11_context = ""
     for term in medical_terms[:2]:  # Limit to first 2 terms
         try:
-            # Search for the term in ICD-11
             search_results = utils.search_icd11_entities(term)
             
-            # If we got results, format them
             if search_results and 'destinationEntities' in search_results:
-                entities = search_results['destinationEntities'][:1]  # Limit to first result
+                entities = search_results['destinationEntities'][:1]
                 for entity in entities:
                     title = entity.get('title', 'Unknown')
                     if 'id' in entity:
-                        # Extract the entity ID from the URI
                         entity_id = entity['id'].split('/')[-1]
                         if entity_id:
                             try:
                                 entity_details = utils.get_icd11_entity_details(entity_id)
                                 definition = entity_details.get('definition', {}).get('@value', '')
-                                if definition:
-                                    icd11_context += f"- {title}: {definition}\n"
-                                else:
-                                    icd11_context += f"- {title}\n"
+                                icd11_context += f"- {title}: {definition}\n" if definition else f"- {title}\n"
                             except Exception:
-                                # If we can't get details, just use the title
                                 icd11_context += f"- {title}\n"
-        except Exception as e:
-            print(f"Error fetching ICD-11 context for term '{term}': {e}")
+        except Exception:
             continue
             
     return icd11_context.strip()
@@ -128,10 +105,10 @@ def get_icd11_context(user_message):
 # === Endpoint 1: Untuk Streaming Chat ===
 @app.route('/chat', methods=['POST'])
 def chat():
-    """Menangani permintaan chat dari frontend dan menyimpan data pasien pada pesan pertama."""
+    """Handle chat requests from frontend and save patient data on first message."""
     data = request.json
     history_from_frontend = data.get('history', [])
-    session_id = data.get('sessionId', str(uuid.uuid4()))  # Generate session ID if not provided
+    session_id = data.get('sessionId', str(uuid.uuid4()))
     if not history_from_frontend:
         return jsonify({"error": "Riwayat chat kosong"}), 400
 
@@ -146,11 +123,11 @@ def chat():
         last_user_message = messages_for_llm[-1]['content']
         last_user_message_lower = last_user_message.lower()
         
-        # Cek apakah pesan adalah permintaan untuk melihat data pasien
+        # Check if message is a patient data request
         if last_user_message_lower.startswith('cek ') and sum(1 for msg in messages_for_llm if msg['role'] == 'user') == 1:
             return handle_patient_data_request(last_user_message)
         
-        # Untuk pengecekan kata kunci non-medis
+        # Check for non-medical keywords
         non_medical_keywords = [
             '1+1', 'cuaca', 'sejarah', 'presiden', 'politik',
             'siapa kamu', 'matematika', 'fisika', 'berapa'
@@ -163,17 +140,12 @@ def chat():
     patient_info = {}
     final_system_prompt = system_prompt_task_1
     
-    # === LOGIKA PENYIMPANAN DATA PASIEN PADA PESAN PERTAMA ===
+    # Save patient data on first message
     if user_message_count == 1:
         initial_complaint = messages_for_llm[-1]['content']
-         
-        # Ekstrak info dari pesan
         patient_info = utils.extract_patient_info(initial_complaint)
-         
-        # Buat ID Pasien
         patient_id = utils.generate_patient_id()
-         
-        # Simpan ke Supabase (primary storage)
+        
         utils.save_patient_data_supabase(
             patient_id=patient_id,
             name=patient_info['nama'],
@@ -182,20 +154,16 @@ def chat():
             initial_complaint=patient_info['keluhan_awal'],
             session_id=session_id
         )
-    # ==========================================================
     elif user_message_count == 2:
         final_system_prompt = system_prompt_task_2
         
-        # For task 2 (analysis), add ICD-11 context to improve the analysis
-        # Get ICD-11 context based on the user's initial complaint
+        # Add ICD-11 context for analysis task
         if len(messages_for_llm) > 1:
             icd11_context = get_icd11_context(messages_for_llm[1]['content'])
             
             if icd11_context:
-                # Modify the system prompt to include ICD-11 context
                 modified_prompt = final_system_prompt.copy()
                 content = modified_prompt["content"]
-                # Replace the placeholder with actual ICD-11 context
                 content = content.replace(
                     "**INFORMASI ICD-11:**\n[ICD-11 context akan disediakan di sini]",
                     f"**INFORMASI ICD-11:**\n{icd11_context}"
@@ -228,7 +196,7 @@ def chat():
 # === Endpoint 2: Untuk Menyimpan Chat (Overwrite & Rename Otomatis) ===
 @app.route('/save-chat', methods=['POST'])
 def save_chat():
-    """Menerima data dan menyimpan ke Supabase."""
+    """Receive data and save to Supabase."""
     data = request.json
     chat_history = data.get('chatHistory', [])
     session_id = data.get('sessionId')
@@ -237,7 +205,7 @@ def save_chat():
     if not chat_history or not session_id:
         return jsonify({"error": "Data chat atau sessionId tidak ada"}), 400
 
-    # Simpan ke Supabase (primary storage)
+    # Save to Supabase
     success = utils.save_chat_history_supabase(session_id, chat_history, patient_data)
     
     if success:
@@ -249,34 +217,34 @@ def save_chat():
 # === Endpoint 3: Untuk Memproses PDF Hasil Laboratorium ===
 @app.route('/process-pdf', methods=['POST'])
 def process_pdf():
-    """Menerima file PDF hasil laboratorium dan memprosesnya."""
-    # Periksa apakah file PDF ada dalam request
+    """Receive lab PDF file and process it."""
+    # Check if PDF file exists in request
     if 'pdf' not in request.files:
         return jsonify({"error": "Tidak ada file PDF dalam request"}), 400
     
     file = request.files['pdf']
     
-    # Periksa apakah file memiliki nama
+    # Check if file has a name
     if file.filename == '':
         return jsonify({"error": "Nama file kosong"}), 400
     
-    # Periksa apakah file adalah PDF
+    # Check if file is PDF
     if not file.filename.lower().endswith('.pdf'):
         return jsonify({"error": "File harus berformat PDF"}), 400
     
     # Reset stream position to beginning
     file.stream.seek(0)
     
-    # Baca file PDF asli sebagai byte
+    # Read original PDF as bytes
     original_pdf = file.stream.read()
     
     # Reset stream position to beginning for processing
     file.stream.seek(0)
     
-    # Proses file PDF
+    # Process PDF file
     result = pdf_processor.process_lab_pdf(file.stream)
     
-    # Simpan hasil ke Supabase
+    # Save results to Supabase
     session_id = request.form.get('session_id', str(uuid.uuid4()))
     utils.save_lab_results_supabase(
         session_id=session_id,
@@ -287,7 +255,7 @@ def process_pdf():
         summary=result['summary']
     )
     
-    # Kembalikan hasil dalam format JSON
+    # Return results in JSON format
     return jsonify({
         "summary": result['summary'],
         "lab_values": result['lab_values']

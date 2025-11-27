@@ -1,108 +1,74 @@
 import PyPDF2
 import pdfplumber
-import io
 import re
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 import config
-import traceback
-import json
 import requests
 import pytesseract
-from PIL import Image
 import tempfile
 import os
 from utils import search_icd11_entities, get_icd11_entity_details
 
 
 def extract_text_from_pdf(file_stream) -> str:
-    """
-    Mengekstrak teks dari file PDF menggunakan pdfplumber untuk akurasi yang lebih baik.
-    Jika ekstraksi teks gagal, gunakan OCR sebagai fallback.
-    
-    Args:
-        file_stream: Stream file PDF
-        
-    Returns:
-        str: Teks yang diekstrak dari PDF
-    """
-    # Reset stream position to beginning
+    """Extract text from PDF using multiple methods as fallbacks."""
     file_stream.seek(0)
     
-    # Coba ekstrak teks dengan pdfplumber terlebih dahulu
+    # Try pdfplumber first
     try:
         with pdfplumber.open(file_stream) as pdf:
             text = "\n".join(page.extract_text() or "" for page in pdf.pages)
             if text.strip():
                 return text.strip()
-    except Exception as e:
-        print(f"Error extracting text with pdfplumber: {e}")
+    except Exception:
+        pass
     
-    # Fallback ke PyPDF2 jika pdfplumber gagal
+    # Fallback to PyPDF2
     try:
         file_stream.seek(0)
         pdf_reader = PyPDF2.PdfReader(file_stream)
         text = "\n".join(page.extract_text() or "" for page in pdf_reader.pages)
         if text.strip():
             return text.strip()
-    except Exception as e:
-        print(f"Error extracting text with PyPDF2: {e}")
+    except Exception:
+        pass
     
-    # Fallback ke OCR jika ekstraksi teks biasa gagal
+    # Final fallback to OCR
     try:
         return extract_text_with_ocr(file_stream).strip()
     except Exception as e:
-        print(f"Error extracting text with OCR: {e}")
         raise Exception(f"Gagal mengekstrak teks dari PDF: {e}")
 
 
 def extract_text_with_ocr(file_stream) -> str:
-    """
-    Mengekstrak teks dari file PDF menggunakan OCR (Optical Character Recognition).
-    
-    Args:
-        file_stream: Stream file PDF
-        
-    Returns:
-        str: Teks yang diekstrak dari PDF menggunakan OCR
-    """
+    """Extract text from PDF using OCR."""
     import pdf2image
     
-    # Reset stream position to beginning
     file_stream.seek(0)
     
-    # Simpan file sementara
+    # Save temporary file
     with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
         tmp_file.write(file_stream.read())
         tmp_file_path = tmp_file.name
     
     try:
-        # Konversi PDF ke gambar
+        # Convert PDF to images
         images = pdf2image.convert_from_path(tmp_file_path)
         
-        # Ekstrak teks dari setiap halaman menggunakan OCR
+        # Extract text from each page using OCR
         text = ""
         for image in images:
-            # Gunakan pytesseract untuk OCR
             page_text = pytesseract.image_to_string(image, lang='ind')
             text += page_text + "\n"
         
         return text
     finally:
-        # Hapus file sementara
+        # Clean up temporary file
         os.unlink(tmp_file_path)
 
 
 def clean_lab_results_text(text: str) -> str:
-    """
-    Membersihkan teks hasil laboratorium untuk menghilangkan informasi yang tidak relevan.
-    
-    Args:
-        text (str): Teks mentah dari PDF hasil laboratorium
-        
-    Returns:
-        str: Teks yang telah dibersihkan
-    """
-    # Hapus header dan footer umum
+    """Clean lab results text by removing irrelevant information."""
     skip_keywords = ['laboratorium', 'hasil pemeriksaan', 'tanggal cetak',
                      'no. registrasi', 'alamat', 'telepon', 'page']
     
@@ -115,16 +81,7 @@ def clean_lab_results_text(text: str) -> str:
 
 
 def extract_lab_values(text: str) -> Dict[str, Any]:
-    """
-    Mengekstrak nilai-nilai penting dari teks hasil laboratorium.
-    
-    Args:
-        text (str): Teks hasil laboratorium yang telah dibersihkan
-        
-    Returns:
-        dict: Dictionary berisi nilai-nilai hasil laboratorium
-    """
-    # Pola untuk mencocokkan nilai laboratorium (contoh: Glukosa: 90 mg/dL)
+    """Extract important values from lab results text."""
     pattern = r'([A-Za-z\s]+):\s*([0-9.,]+)\s*([A-Za-z/\s]+)'
     matches = re.findall(pattern, text)
     
@@ -137,23 +94,10 @@ def extract_lab_values(text: str) -> Dict[str, Any]:
     }
 
 
-def summarize_lab_results(lab_text: str, lab_values: dict) -> str:
-    """
-    Menggunakan AI untuk merangkum hasil laboratorium dengan integrasi informasi ICD-11.
-    
-    Args:
-        lab_text (str): Teks hasil laboratorium yang telah dibersihkan
-        lab_values (dict): Dictionary berisi nilai-nilai hasil laboratorium
-        
-    Returns:
-        str: Rangkuman hasil laboratorium dengan konteks ICD-11
-    """
-    # Ekstrak istilah medis dari lab_values
-    medical_terms = list(lab_values.keys())[:3]  # Batasi 3 istilah pertama
-    
-    # Cari konteks ICD-11
-    icd11_context = ""
-    for term in medical_terms:
+def _get_icd11_context_for_terms(terms: list) -> str:
+    """Get ICD-11 context for medical terms."""
+    context = ""
+    for term in terms:
         try:
             search_results = search_icd11_entities(term)
             if search_results and 'destinationEntities' in search_results:
@@ -166,18 +110,22 @@ def summarize_lab_results(lab_text: str, lab_values: dict) -> str:
                             try:
                                 entity_details = get_icd11_entity_details(entity_id)
                                 definition = entity_details.get('definition', {}).get('@value', '')
-                                if definition:
-                                    icd11_context += f"- {title}: {definition}\n"
-                                else:
-                                    icd11_context += f"- {title}\n"
+                                context += f"- {title}: {definition}\n" if definition else f"- {title}\n"
                             except Exception:
-                                # Jika tidak bisa mendapatkan detail, gunakan hanya judul
-                                icd11_context += f"- {title}\n"
-        except Exception as e:
-            print(f"Error fetching ICD-11 context for term '{term}': {e}")
+                                context += f"- {title}\n"
+        except Exception:
             continue
     
-    # Buat prompt untuk AI dengan konteks ICD-11
+    return context.strip()
+
+
+def summarize_lab_results(lab_text: str, lab_values: dict) -> str:
+    """Summarize lab results with ICD-11 context using AI."""
+    # Get ICD-11 context for medical terms
+    medical_terms = list(lab_values.keys())[:3]
+    icd11_context = _get_icd11_context_for_terms(medical_terms)
+    
+    # Create AI prompt with ICD-11 context
     prompt = f"""
     Anda adalah seorang asisten medis AI yang membantu dalam menganalisis hasil laboratorium pasien.
     Berikut adalah hasil pemeriksaan laboratorium pasien:
@@ -197,7 +145,7 @@ def summarize_lab_results(lab_text: str, lab_values: dict) -> str:
     Berikan respons dalam bahasa Indonesia yang jelas dan informatif.
     """
     
-    # Buat payload untuk API Chutes AI
+    # Prepare API payload
     payload = {
         "model": config.MODEL_NAME,
         "messages": [
@@ -209,7 +157,7 @@ def summarize_lab_results(lab_text: str, lab_values: dict) -> str:
         "temperature": 0.5
     }
     
-    # Kirim permintaan ke API Chutes AI
+    # Send request to Chutes AI API
     headers = {
         "Authorization": f"Bearer {config.CHUTES_API_TOKEN}",
         "Content-Type": "application/json"
@@ -222,33 +170,23 @@ def summarize_lab_results(lab_text: str, lab_values: dict) -> str:
         
         return result.get("choices", [{}])[0].get("message", {}).get("content", "Gagal membuat rangkuman.")
     except Exception as e:
-        print(f"Error summarizing lab results: {e}")
         return f"Terjadi kesalahan saat merangkum hasil laboratorium: {str(e)}"
 
 
 def process_lab_pdf(file_stream) -> Dict[str, Any]:
-    """
-    Memproses file PDF hasil laboratorium secara lengkap.
-    
-    Args:
-        file_stream: Stream file PDF
-        
-    Returns:
-        dict: Dictionary berisi teks mentah, teks yang dibersihkan, nilai laboratorium, dan rangkuman
-    """
-    # Reset stream position to beginning
+    """Process lab PDF file completely."""
     file_stream.seek(0)
     
-    # Ekstrak teks dari PDF
+    # Extract text from PDF
     raw_text = extract_text_from_pdf(file_stream)
     
-    # Bersihkan teks
+    # Clean text
     cleaned_text = clean_lab_results_text(raw_text)
     
-    # Ekstrak nilai laboratorium
+    # Extract lab values
     lab_values = extract_lab_values(cleaned_text)
     
-    # Rangkum hasil dengan AI
+    # Summarize with AI
     summary = summarize_lab_results(cleaned_text, lab_values)
     
     return {

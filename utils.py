@@ -7,15 +7,12 @@ from config import get_supabase_client, ICD11_CLIENT_ID, ICD11_CLIENT_SECRET
 from icd11_client import ICD11Client
 
 def generate_patient_id(length=5):
-    """Menghasilkan ID pasien acak alfanumerik dengan panjang tertentu."""
+    """Generate random alphanumeric patient ID with specified length."""
     characters = string.ascii_letters + string.digits
     return ''.join(random.choice(characters) for i in range(length))
 
 def extract_patient_info(message: str):
-    """
-    Mengekstrak nama, umur, dan gender dari pesan awal menggunakan regex.
-    Mengembalikan dictionary berisi 'nama', 'umur', dan 'gender'.
-    """
+    """Extract name, age, and gender from initial message using regex."""
     info = {
         'nama': 'unknown',
         'umur': 0,
@@ -23,12 +20,12 @@ def extract_patient_info(message: str):
         'keluhan_awal': message.strip()
     }
 
-    # 1. Ekstrak Umur (lebih spesifik)
+    # Extract age
     age_match = re.search(r'(\d+)\s*(?:tahun|thn)', message, re.IGNORECASE)
     if age_match:
         info['umur'] = int(age_match.group(1))
 
-    # 2. Ekstrak Gender
+    # Extract gender
     gender_match = re.search(r'\b(laki-laki|perempuan|pria|wanita)\b', message, re.IGNORECASE)
     if gender_match:
         gender = gender_match.group(1).lower()
@@ -37,38 +34,20 @@ def extract_patient_info(message: str):
         elif gender in ['perempuan', 'wanita']:
             info['gender'] = 'Perempuan'
 
-    # 3. Ekstrak Nama (asumsikan kata pertama adalah nama jika bukan sapaan)
-    # Hapus bagian yang sudah teridentifikasi (umur, gender) untuk menyederhanakan pencarian nama
+    # Extract name
     cleaned_message = re.sub(r'(\d+)\s*(?:tahun|thn)', '', message, flags=re.IGNORECASE)
     cleaned_message = re.sub(r'\b(laki-laki|perempuan|pria|wanita)\b', '', cleaned_message, flags=re.IGNORECASE)
-    
-    # Hapus tanda baca umum dan spasi berlebih
     cleaned_message = re.sub(r'[,.]', '', cleaned_message).strip()
     
-    # Ambil kata pertama dari pesan yang sudah dibersihkan
     words = cleaned_message.split()
     if words:
-        # Asumsikan kata pertama adalah nama
         info['nama'] = words[0].capitalize()
 
     return info
 
 
 def save_patient_data_supabase(patient_id: str, name: str, age: int, gender: str, initial_complaint: str, session_id: str = None):
-    """
-    Menyimpan data pasien ke Supabase Database.
-    
-    Args:
-        patient_id (str): ID unik untuk pasien.
-        name (str): Nama lengkap pasien.
-        age (int): Umur pasien.
-        gender (str): Jenis kelamin pasien.
-        initial_complaint (str): Keluhan awal yang disampaikan pasien.
-        session_id (str): ID sesi chat (opsional).
-        
-    Returns:
-        bool: True jika berhasil, False jika gagal.
-    """
+    """Save patient data to Supabase Database."""
     try:
         supabase = get_supabase_client()
         patient_data = {
@@ -82,24 +61,11 @@ def save_patient_data_supabase(patient_id: str, name: str, age: int, gender: str
         response = supabase.table('patients').insert(patient_data).execute()
         return bool(response.data)
     except Exception as e:
-        print(f"Terjadi error saat menyimpan data ke Supabase: {e}")
+        print(f"Error saving patient data to Supabase: {e}")
         return False
 
 def save_lab_results_supabase(session_id: str, pdf_filename: str, original_pdf: bytes, extracted_text: str, lab_values: dict, summary: str):
-    """
-    Menyimpan hasil laboratorium ke Supabase Database.
-    
-    Args:
-        session_id (str): ID sesi chat.
-        pdf_filename (str): Nama file PDF.
-        original_pdf (bytes): File PDF asli dalam bentuk byte.
-        extracted_text (str): Teks hasil ekstraksi dari PDF.
-        lab_values (dict): Nilai-nilai hasil laboratorium.
-        summary (str): Rangkuman hasil laboratorium.
-        
-    Returns:
-        bool: True jika berhasil, False jika gagal.
-    """
+    """Save lab results to Supabase Database."""
     try:
         supabase = get_supabase_client()
         
@@ -115,21 +81,11 @@ def save_lab_results_supabase(session_id: str, pdf_filename: str, original_pdf: 
         response = supabase.table('lab_results').insert(lab_data).execute()
         return bool(response.data)
     except Exception as e:
-        print(f"Terjadi error saat menyimpan hasil laboratorium ke Supabase: {e}")
+        print(f"Error saving lab results to Supabase: {e}")
         return False
 
 def save_chat_history_supabase(session_id: str, chat_history: list, patient_data: dict = None):
-    """
-    Menyimpan riwayat chat ke Supabase Database.
-    
-    Args:
-        session_id (str): ID sesi chat.
-        chat_history (list): Daftar pesan chat.
-        patient_data (dict): Data pasien (opsional).
-        
-    Returns:
-        bool: True jika berhasil, False jika gagal.
-    """
+    """Save chat history to Supabase Database."""
     try:
         supabase = get_supabase_client()
         
@@ -139,7 +95,7 @@ def save_chat_history_supabase(session_id: str, chat_history: list, patient_data
             'patient_data': patient_data
         }
         
-        # Jika sudah ada data dengan session_id ini, update daripada insert
+        # Update if session exists, otherwise insert
         existing_data = supabase.table('chat_logs').select('*').eq('session_id', session_id).execute()
         if existing_data.data:
             response = supabase.table('chat_logs').update(chat_data).eq('session_id', session_id).execute()
@@ -148,74 +104,42 @@ def save_chat_history_supabase(session_id: str, chat_history: list, patient_data
             
         return bool(response.data)
     except Exception as e:
-        print(f"Terjadi error saat menyimpan riwayat chat ke Supabase: {e}")
+        print(f"Error saving chat history to Supabase: {e}")
         return False
 
 def get_patient_data_by_id(patient_id: str):
-    """
-    Mengambil data pasien dari database Supabase berdasarkan ID pasien.
-    
-    Args:
-        patient_id (str): ID pasien yang akan dicari.
-        
-    Returns:
-        dict: Data pasien jika ditemukan, None jika tidak ditemukan.
-    """
+    """Get patient data from Supabase by patient ID."""
     try:
         supabase = get_supabase_client()
         
-        # Query data pasien berdasarkan id_pasien
         response = supabase.table('patients').select('*').eq('id_pasien', patient_id.strip()).execute()
         
-        # Kembalikan data pasien jika ditemukan
         return response.data[0] if response.data else None
     except Exception as e:
-        print(f"Terjadi error saat mengambil data pasien dari Supabase: {e}")
+        print(f"Error retrieving patient data from Supabase: {e}")
         return None
 
 def search_icd11_entities(query: str, language: str = 'en') -> dict:
-    """
-    Search for ICD-11 entities using the provided query.
-    
-    Args:
-        query (str): The search query
-        language (str): The language for the search (default: 'en')
-        
-    Returns:
-        dict: The search results from ICD-11 API
-    """
+    """Search for ICD-11 entities using the provided query."""
     try:
-        # Create ICD-11 client with credentials from config
         client = ICD11Client(
             client_id=ICD11_CLIENT_ID,
             client_secret=ICD11_CLIENT_SECRET
         )
         
-        # Perform the search
         return client.search_entities(query, language)
     except Exception as e:
         print(f"Error searching ICD-11 entities: {e}")
         return {"error": str(e)}
 
 def get_icd11_entity_details(entity_id: str, language: str = 'en') -> dict:
-    """
-    Get detailed information about a specific ICD-11 entity by ID.
-    
-    Args:
-        entity_id (str): The ID of the entity
-        language (str): The language for the response (default: 'en')
-        
-    Returns:
-        dict: The entity details from ICD-11 API
-    """
+    """Get detailed information about a specific ICD-11 entity by ID."""
     try:
-        # Create ICD-11 client with credentials from config
         client = ICD11Client(
             client_id=ICD11_CLIENT_ID,
             client_secret=ICD11_CLIENT_SECRET
         )
         
-        # Get entity details
         return client.get_entity_by_id(entity_id, language)
     except Exception as e:
         print(f"Error getting ICD-11 entity details: {e}")
