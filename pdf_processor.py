@@ -5,7 +5,6 @@ import re
 from typing import Optional, Dict, Any
 import config
 import traceback
-from utils import stream_chutes_ai_response
 import json
 import requests
 
@@ -178,9 +177,6 @@ def process_lab_pdf(file_stream) -> Dict[str, Any]:
     
     # Reset stream position to beginning
     file_stream.seek(0)
-    # Debug: Cek tipe file stream
-    print(f"File stream type: {type(file_stream)}")
-    print(f"File stream: {file_stream}")
     
     # Reset stream position to beginning
     file_stream.seek(0)
