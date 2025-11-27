@@ -205,7 +205,7 @@ def summarize_lab_results(lab_text: str, lab_values: dict) -> str:
             {"role": "user", "content": prompt}
         ],
         "stream": False,
-        "max_tokens": 1024,
+        "max_tokens": 2048,
         "temperature": 0.5
     }
     
