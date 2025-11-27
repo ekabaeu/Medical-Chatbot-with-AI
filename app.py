@@ -10,6 +10,7 @@ import uuid
 import config
 from prompts import system_prompt_task_1, system_prompt_task_2, system_prompt_task_3
 import utils  # Impor seluruh modul utils
+import pdf_processor
 
 # --- Konfigurasi Aplikasi ---
 app = Flask(__name__)
@@ -272,3 +273,37 @@ def save_chat():
     except Exception as e:
         print(f"Error saving chat: {e}")
         return jsonify({"error": "Gagal menyimpan chat di server"}), 500
+
+
+# === Endpoint 3: Untuk Memproses PDF Hasil Laboratorium ===
+@app.route('/process-pdf', methods=['POST'])
+def process_pdf():
+    """Menerima file PDF hasil laboratorium dan memprosesnya."""
+    
+    try:
+        # Periksa apakah file PDF ada dalam request
+        if 'pdf' not in request.files:
+            return jsonify({"error": "Tidak ada file PDF dalam request"}), 400
+        
+        file = request.files['pdf']
+        
+        # Periksa apakah file memiliki nama
+        if file.filename == '':
+            return jsonify({"error": "Nama file kosong"}), 400
+        
+        # Periksa apakah file adalah PDF
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({"error": "File harus berformat PDF"}), 400
+        
+        # Proses file PDF
+        result = pdf_processor.process_lab_pdf(file.stream)
+        
+        # Kembalikan hasil dalam format JSON
+        return jsonify({
+            "summary": result['summary'],
+            "lab_values": result['lab_values']
+        }), 200
+        
+    except Exception as e:
+        print(f"Error processing PDF: {e}")
+        return jsonify({"error": f"Gagal memproses file PDF: {str(e)}"}), 500

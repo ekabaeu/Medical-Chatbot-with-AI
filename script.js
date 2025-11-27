@@ -2,6 +2,8 @@ const chatContainer = document.getElementById('chat-container');
 const chatBox = document.getElementById('chat-box');
 const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
+const uploadButton = document.getElementById('upload-button');
+const pdfUpload = document.getElementById('pdf-upload');
 
 // --- Variabel Global ---
 // Use the same origin for backend when deployed to Vercel
@@ -11,6 +13,11 @@ let sessionId = null; // Akan diisi saat pesan pertama
 let patientData = { name: 'unknown', age: 'unknown' }; // Menyimpan data pasien
 
 // --- Event Listeners ---
+uploadButton.addEventListener('click', () => {
+    pdfUpload.click();
+});
+
+pdfUpload.addEventListener('change', handlePDFUpload);
 sendButton.addEventListener('click', sendMessageFromInput); 
 userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessageFromInput();
@@ -166,4 +173,57 @@ function displayMessage(message, sender) {
     chatBox.appendChild(messageElement);
     chatBox.scrollTop = chatBox.scrollHeight;
     return messageElement;
+}
+
+// Fungsi: Menangani upload PDF
+async function handlePDFUpload(event) {
+    const file = event.target.files[0];
+    if (!file || file.type !== 'application/pdf') {
+        alert('Silakan pilih file PDF yang valid.');
+        return;
+    }
+
+    // Tampilkan pesan loading
+    const loadingMessage = displayMessage('Memproses file PDF...', 'bot');
+    
+    try {
+        const formData = new FormData();
+        formData.append('pdf', file);
+        
+        const response = await fetch(`${BACKEND_URL}/process-pdf`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // Hapus pesan loading
+        chatBox.removeChild(loadingMessage);
+        
+        // Tampilkan hasil
+        displayMessage(`Hasil Laboratorium:\n${result.summary}`, 'bot');
+        
+        // Tambahkan ke chat history
+        chatHistory.push({
+            timestamp: new Date().toISOString(),
+            sender: 'Bot',
+            message: `Hasil Laboratorium:\n${result.summary}`
+        });
+        
+        // Simpan chat
+        await autoSaveChat();
+        
+    } catch (error) {
+        console.error('Error processing PDF:', error);
+        // Hapus pesan loading
+        chatBox.removeChild(loadingMessage);
+        displayMessage('Maaf, terjadi kesalahan saat memproses file PDF.', 'bot');
+    }
+    
+    // Reset input
+    pdfUpload.value = '';
 }
