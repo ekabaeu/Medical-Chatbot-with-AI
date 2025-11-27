@@ -99,6 +99,44 @@ def save_patient_data_supabase(patient_id: str, name: str, age: int, gender: str
             return False
     except Exception as e:
         print(f"Terjadi error saat menyimpan data ke Supabase: {e}")
+
+def save_lab_results_supabase(session_id: str, pdf_filename: str, original_pdf: bytes, extracted_text: str, lab_values: dict, summary: str):
+    """
+    Menyimpan hasil laboratorium ke Supabase Database.
+    
+    Args:
+        session_id (str): ID sesi chat.
+        pdf_filename (str): Nama file PDF.
+        original_pdf (bytes): File PDF asli dalam bentuk byte.
+        extracted_text (str): Teks hasil ekstraksi dari PDF.
+        lab_values (dict): Nilai-nilai hasil laboratorium.
+        summary (str): Rangkuman hasil laboratorium.
+        
+    Returns:
+        bool: True jika berhasil, False jika gagal.
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        lab_data = {
+            'session_id': session_id,
+            'pdf_filename': pdf_filename,
+            'original_pdf': original_pdf,
+            'extracted_text': extracted_text,
+            'lab_values': lab_values,
+            'summary': summary
+        }
+        
+        response = supabase.table('lab_results').insert(lab_data).execute()
+        if response.data:
+            return True
+        else:
+            print(f"Gagal menyimpan hasil laboratorium ke Supabase: {response}")
+            return False
+    except Exception as e:
+        print(f"Terjadi error saat menyimpan hasil laboratorium ke Supabase: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def save_chat_history_supabase(session_id: str, chat_history: list, patient_data: dict = None):

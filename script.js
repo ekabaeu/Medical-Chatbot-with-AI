@@ -189,6 +189,8 @@ async function handlePDFUpload(event) {
     try {
         const formData = new FormData();
         formData.append('pdf', file);
+        // Tambahkan session ID ke form data
+        formData.append('session_id', sessionId || Date.now().toString());
         
         const response = await fetch(`${BACKEND_URL}/process-pdf`, {
             method: 'POST',

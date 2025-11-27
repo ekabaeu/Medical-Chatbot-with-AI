@@ -295,8 +295,33 @@ def process_pdf():
         if not file.filename.lower().endswith('.pdf'):
             return jsonify({"error": "File harus berformat PDF"}), 400
         
+        # Debug: Cek tipe file stream
+        print(f"File stream type: {type(file.stream)}")
+        print(f"File stream: {file.stream}")
+        
+        # Reset stream position to beginning
+        file.stream.seek(0)
+        
+        # Baca file PDF asli sebagai byte
+        file.stream.seek(0)
+        original_pdf = file.stream.read()
+        
+        # Reset stream position to beginning
+        file.stream.seek(0)
+        
         # Proses file PDF
         result = pdf_processor.process_lab_pdf(file.stream)
+        
+        # Simpan hasil ke Supabase
+        session_id = request.form.get('session_id', str(uuid.uuid4()))
+        utils.save_lab_results_supabase(
+            session_id=session_id,
+            pdf_filename=file.filename,
+            original_pdf=original_pdf,
+            extracted_text=result['cleaned_text'],
+            lab_values=result['lab_values'],
+            summary=result['summary']
+        )
         
         # Kembalikan hasil dalam format JSON
         return jsonify({

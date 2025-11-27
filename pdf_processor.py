@@ -172,6 +172,13 @@ def process_lab_pdf(file_stream) -> Dict[str, Any]:
     Returns:
         dict: Dictionary berisi teks mentah, teks yang dibersihkan, nilai laboratorium, dan rangkuman
     """
+    # Debug: Cek tipe file stream
+    print(f"File stream type: {type(file_stream)}")
+    print(f"File stream: {file_stream}")
+    
+    # Reset stream position to beginning
+    file_stream.seek(0)
+    
     # Ekstrak teks dari PDF
     raw_text = extract_text_from_pdf(file_stream)
     
