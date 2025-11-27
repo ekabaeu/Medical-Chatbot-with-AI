@@ -306,7 +306,7 @@ def process_pdf():
         file.stream.seek(0)
         original_pdf = file.stream.read()
         
-        # Reset stream position to beginning
+        # Reset stream position to beginning for processing
         file.stream.seek(0)
         
         # Proses file PDF

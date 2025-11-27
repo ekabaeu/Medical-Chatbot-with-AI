@@ -198,7 +198,8 @@ async function handlePDFUpload(event) {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
         
         const result = await response.json();
@@ -223,7 +224,7 @@ async function handlePDFUpload(event) {
         console.error('Error processing PDF:', error);
         // Hapus pesan loading
         chatBox.removeChild(loadingMessage);
-        displayMessage('Maaf, terjadi kesalahan saat memproses file PDF.', 'bot');
+        displayMessage('Maaf, terjadi kesalahan saat memproses file PDF: ' + error.message, 'bot');
     }
     
     // Reset input
